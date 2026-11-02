@@ -5,7 +5,7 @@ Paste everything below the line into a Claude Code session opened in `metalayerl
 ---
 
 Migrate this repository from `metalayerlab/project-template` (v0.1.17) to the stacked templates:
-template-base v2.0.0, then template-python v1.0.0, then template-container v1.0.0. It's a service with an image and docker, k8s and systemd manifests (template-container too).
+template-base v2.0.2, then template-python v2.0.0, then template-container v2.0.0. It's a service with an image and docker, k8s and systemd manifests (template-container too).
 Why: template-base's `docs/decisions/0001-stacked-templates.md`, template-python's
 `docs/decisions/0001-python-overlay.md` and template-container's `docs/decisions/0001-container-overlay.md`.
 
@@ -82,9 +82,9 @@ The answers above are this repository's current ones, split by owner (base's ide
 ## 2. Apply the new templates in place, then 3-way merge what this repository had changed
 
 ```sh
-uvx copier copy --trust --defaults --skip-tasks --overwrite --vcs-ref v2.0.0 --data-file "$S/base.yml" gh:andronics/template-base .
-uvx copier copy --trust --defaults --skip-tasks --overwrite --vcs-ref v1.0.0 --data-file "$S/python.yml" gh:andronics/template-python .
-uvx copier copy --trust --defaults --skip-tasks --overwrite --vcs-ref v1.0.0 --data-file "$S/container.yml" gh:andronics/template-container .
+uvx copier copy --trust --defaults --skip-tasks --overwrite --vcs-ref v2.0.2 --data-file "$S/base.yml" gh:andronics/template-base .
+uvx copier copy --trust --defaults --skip-tasks --overwrite --vcs-ref v2.0.0 --data-file "$S/python.yml" gh:andronics/template-python .
+uvx copier copy --trust --defaults --skip-tasks --overwrite --vcs-ref v2.0.0 --data-file "$S/container.yml" gh:andronics/template-container .
 ```
 
 Copier writes each template file over the project's, and leaves the `_skip_if_exists` ones alone (`src/`,
@@ -107,7 +107,8 @@ for rel in changed:
     if not old.is_file() or old.read_bytes() == ours:
         continue  # the project never changed this file: the new version stands
     new = Path(rel).read_bytes()
-    theirs = Path(sys.argv[1]) / "theirs"; theirs.write_bytes(new)
+    theirs = Path(sys.argv[1]) / "new" / rel  # the new version, kept for a conflict
+    theirs.parent.mkdir(parents=True, exist_ok=True); theirs.write_bytes(new)
     Path(rel).write_bytes(ours)
     if subprocess.run(["git", "merge-file", "-L", "ours", "-L", "old template", "-L", "new templates",
                        rel, str(old), str(theirs)]).returncode:
