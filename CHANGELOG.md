@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/andronics/template-python/compare/v2.0.0...v2.0.1) (2026-11-02)
+
+
+### 📚 Documentation
+
+* point the migration prompts at the v2.x releases ([#6](https://github.com/andronics/template-python/issues/6)) ([a797e77](https://github.com/andronics/template-python/commit/a797e77b424d8e788be8757eee2bf9a3cb8c724f))
+
 ## [2.0.0](https://github.com/andronics/template-python/compare/v1.0.0...v2.0.0) (2026-11-02)
 
 
