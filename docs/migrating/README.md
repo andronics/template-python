@@ -12,6 +12,9 @@ with the stacked templates' answers files in one reviewed PR, after a 3-way merg
 
 They use template-base `v2.0.2`, template-python `v2.0.0` and template-container `v2.0.0`, the first releases of the overlays.
 
+A project that was never made from a template has no old render to merge against: follow
+[no-template-history.md](no-template-history.md) (a 2-way merge; first used for andronics/trackie).
+
 ## After a template update
 
 Changes a template update can't make, because the files are the project's (`src/`, `tests/`):
