@@ -143,7 +143,7 @@ def test_fills_every_slot_and_prefixes_its_files(project: Path) -> None:
     workflows = {p.name for p in (project / ".github/workflows").glob("*.yml")}
     base = {"base-ci.yml", "template-update.yml", "pr-title.yml"}
     ours = {w for w in workflows - base if not w.startswith("container-")}
-    assert ours == {"stack-ci.yml", "python-release.yml", "python-wiki.yml"}
+    assert ours == {"stack-ci.yml", "python-release.yml", "python-wiki.yml", "python-tag-check.yml"}
     for d in ("checks.d", "bootstrap.d", "post-update.d"):
         names = [p.name for p in (project / "scripts" / d).glob("*.sh") if "base" not in p.name]
         assert all(re.match(r"\d\d-(python|container)", n) for n in names), names
