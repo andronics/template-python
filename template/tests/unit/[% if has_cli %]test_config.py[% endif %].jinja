@@ -8,10 +8,13 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from interpose.settings import Setting, Settings
 
 from [[ package_name ]].config import (
     CONFIG_ENV,
     DEFAULT_CONFIG_PATH,
+    ENV_PREFIX,
+    LOG_LEVELS,
     SETTINGS,
     ConfigError,
     load_config,
@@ -81,6 +84,32 @@ def test_invalid_log_level(tmp_path: Path) -> None:
     match = r"log_level: expected one of DEBUG, INFO, WARNING, ERROR, got 'loud'"
     with pytest.raises(ConfigError, match=match):
         load_config(tmp_path / "missing.yaml", environ={"[[ env_prefix ]]LOG_LEVEL": "loud"})
+
+
+def test_level_is_the_declared_spelling(write_config: Callable[..., Path]) -> None:
+    # one_of() resolves any case to the spelling LOG_LEVELS declares: the names logging wants.
+    assert "INFO" in LOG_LEVELS
+    for given in ("info", "Info", "INFO"):
+        assert load_config(write_config(f"log_level: {given}\n"), environ={}).log_level == "INFO"
+    cfg = load_config(write_config(""), environ={"[[ env_prefix ]]LOG_LEVEL": "debug"})
+    assert cfg.log_level == "DEBUG"
+
+
+def test_a_secret_setting(tmp_path: Path) -> None:
+    # The pattern for a secret=True setting: read it with secret() and reveal() it where it's used.
+    token = Setting("example.token", "", "A token.", secret=True)
+    settings = Settings(ENV_PREFIX, (*SETTINGS, token), default_path=DEFAULT_CONFIG_PATH)
+    path = tmp_path / "token"
+    path.write_text("s3cret\n", encoding="utf-8")
+    env = {"[[ env_prefix ]]EXAMPLE_TOKEN_FILE": str(path)}
+    resolved = settings.resolve(tmp_path / "missing.yaml", env)
+    secret = resolved.secret("example.token")
+    assert secret.reveal() == "s3cret"
+    assert str(secret) == f"{secret}" == "********"
+    assert "s3cret" not in repr(secret)
+    # str() on a secret setting is refused at load, not sent as ********.
+    with pytest.raises(TypeError, match=r"secret setting, not str: use secret\(\) and reveal\(\)"):
+        resolved.str("example.token")
 
 
 def test_top_level_must_be_mapping(write_config: Callable[..., Path]) -> None:

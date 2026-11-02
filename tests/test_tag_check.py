@@ -321,9 +321,9 @@ def test_rendered_script(project: Path, variant: str, tmp_path: Path) -> None:
         assert (result.returncode, result.stdout) == (0, "tag-check: no tag-pinned git dependencies\n"), result.stderr
         return
     tags = tmp_path / "tags.json"
-    tags.write_text(json.dumps({"metalayerlab/interpose": ["v0.1.0", "v0.1.1"]}))
+    tags.write_text(json.dumps({"metalayerlab/interpose": ["v0.2.0", "v0.2.1"]}))
     before = (project / "pyproject.toml").read_text()
     result = subprocess.run([*cmd, "--dry-run", "--tags-from", str(tags)], cwd=project, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
-    assert "chore(deps): bump interpose from v0.1.0 to v0.1.1\n" in result.stdout, result.stdout  # no "(breaking)"
+    assert "chore(deps): bump interpose from v0.2.0 to v0.2.1\n" in result.stdout, result.stdout  # no "(breaking)"
     assert (project / "pyproject.toml").read_text() == before

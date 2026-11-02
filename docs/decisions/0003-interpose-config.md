@@ -71,7 +71,7 @@ __all__ = ["CONFIG_ENV", "DEFAULT_CONFIG_PATH", "ENV_PREFIX", "LOG_LEVELS", "SET
 def load_config(path: Path | None = None, environ: Mapping[str, str] | None = None) -> Config:
     v = SETTINGS.resolve(path, environ)
     # Cross-setting rules here; single-value rules are check= above.
-    return Config(log_level=cast(str, v.values["log_level"]).upper(), ..., sources=dict(v.sources))
+    return Config(log_level=v.str("log_level"), ..., sources=dict(v.sources))  # interpose v0.2.0
 ```
 
 A project owns its `SETTINGS` entries, its `Config` dataclass and `load_config`'s cross-setting rules
@@ -97,7 +97,7 @@ fails a test.
 alphabetical), and a block after `[tool.hatch.build.targets.wheel]`:
 
 ```toml
-    "interpose @ git+https://github.com/metalayerlab/interpose@v0.1.0",
+    "interpose @ git+https://github.com/metalayerlab/interpose@v0.2.0",
 ```
 
 ```toml
@@ -136,9 +136,11 @@ no installer can take a PyPI `interpose` instead ([0002](0002-tag-check-workflow
 - A project that adds `secret=True` gets a `Secret` in `Resolved.values`. `Config` holds it as `Secret`
   and the code calls `.reveal()` at the point of use (a header, a connection string). `str()` or an
   f-string gives `********`, silently: a wrong credential is sent, not leaked, but nothing fails at load.
-  So `load_config` narrows with `cast(Secret, ...)`, never `str(...)`, and the skeleton does the same for
-  its non-secret values (`cast(str, ...)`), so the pattern copied is the safe one. Typed accessors that
-  refuse a secret are [metalayerlab/interpose#13](https://github.com/metalayerlab/interpose/issues/13).
+  So `load_config` reads it with interpose v0.2.0's `resolved.secret(key)`, and the skeleton reads its
+  non-secret values with the accessor of their kind (`resolved.str(key)`, `.int`, `.bool`, `.list`), so
+  the pattern copied is the safe one: `resolved.str(key)` on a secret setting raises `TypeError` at load
+  (interpose design 0007, #13). The first version cast with `cast(Secret, ...)` and `cast(str, ...)`,
+  which nothing checked.
 - `.agents/stack.md`'s Config line gains one sentence: "A secret is a `Secret`: `.reveal()` where it's
   used; `str()` gives `********`." 83 characters.
 
@@ -193,7 +195,8 @@ lands. So that the template change doesn't collide with theirs:
   `pyproject.toml` would lose a line its own code may need. *Rejected.*
 - **Typed accessors instead of `cast`** (`Resolved.str("key")`, `.secret("key")`). Better, but interpose's
   API, not this template's: resolved question 3,
-  [metalayerlab/interpose#13](https://github.com/metalayerlab/interpose/issues/13).
+  [metalayerlab/interpose#13](https://github.com/metalayerlab/interpose/issues/13). *Adopted* once
+  interpose v0.2.0 shipped them (the note below).
 
 ## Consequences
 
@@ -232,11 +235,16 @@ against the merged code:
 - **Secrets confirm the rule.** mitm-proxy's `Config.proxy_auth` and `Config.ca_key` hold the `Secret`
   (`cast(Secret, ...)` in `load_config`), and `reveal()` is called where each is used: the auth callback
   and the CA's key PEM. Migration item 5 was fixed this way.
-- **Case is the project's job.** `one_of` accepts a value in any case but returns it unchanged. It checks,
-  it doesn't normalise. So both projects upper-case `log_level` in `load_config`, because the logging module
-  wants upper case. Until metalayerlab/interpose#8 lands (`one_of` normalising to the canonical choice, or
-  a transform hook on `Setting`), projects normalise case in `load_config`. The generated `load_config`
-  does the same for any level-style setting it ships, as the sketch above does for `log_level`.
+- **v0.2.0 replaced the casts.** mitm-proxy moved to interpose v0.2.0 and its typed accessors in
+  metalayerlab/mitm-proxy#22 (`579a9ec`): `r.secret("proxy.auth")` and `r.secret("ca.key")`,
+  `r.str(...)` for the rest, and no `log_level` upper-casing. sluice is still on `v0.1.2` with `cast()`;
+  it keeps working, and switches when tag-check's PR brings it v0.2.0.
+- **Case was the project's job on v0.1.** interpose v0.1's `one_of` accepted a value in any case but
+  returned it unchanged, so both projects upper-cased `log_level` in `load_config`, because the logging
+  module wants upper case, and the first generated `load_config` did the same. interpose v0.2.0
+  (metalayerlab/interpose#8, design 0007) lets a check return a replacement of the setting's kind (never
+  for a secret setting), and `one_of` always returns the declared spelling: `LOG_LEVEL=info` resolves to
+  `"INFO"`. `LOG_LEVELS` declares logging's names, so `load_config` no longer re-cases anything.
 - **`check=` covers single-value project rules.** sluice has no cross-setting rule yet (`load_config`
   holds only a placeholder comment), so `secrets.dir` above is an example of where one would go, not a
   rule sluice has today. Its `env.expose` rules (variable names only, none of `SLUICE_*`) are a local
@@ -256,10 +264,28 @@ Stephen accepted every recommended answer on 2026-11-02.
 3. **`cast` in the skeleton, or typed accessors in interpose first?** `cast` now, and
    [metalayerlab/interpose#13](https://github.com/metalayerlab/interpose/issues/13) for
    `Resolved.str/int/bool/list/secret` (raising `TypeError` on the wrong kind); the skeleton switches when
-   that is tagged.
+   that is tagged. It was, in v0.2.0, and the skeleton has switched (the note below).
 4. **The Security page said secrets are read "from files only, never from the config file"**, but both
    engines accept a secret from the environment and the YAML file too. The wording is fixed for new
    projects: give a secret through its `_FILE` variable. interpose doesn't refuse other sources for
    `secret=True`: that would break any deployment that sets the plain variable, and it's interpose's call.
 5. **A check that a project's `config.py` still has its own engine?** No, as 0020 decided: a project may
    keep its copy on purpose, and the migration prompt (`docs/migrating/interpose-config.md`) is enough.
+
+## Note (2026-11-02): the pin moves to v0.2.0
+
+The pin moves only when the skeleton needs a newer interpose (Decision, "What else the template
+changes"). It now does: the generated `config.py` reads each value with interpose v0.2.0's typed
+accessors (`resolved.str/int/bool/list/secret`, design 0007, metalayerlab/interpose#13) instead of
+`cast()`, and drops `.upper()` on `log_level`, because `one_of` returns the declared spelling
+(metalayerlab/interpose#8). Neither exists in v0.1.x, so the template pin is
+`"interpose @ git+https://github.com/metalayerlab/interpose@v0.2.0",`, the line otherwise unchanged.
+
+- **New projects** get the accessors, and `test_config.py` tests a lower-case level resolving to the
+  declared spelling and a secret setting: masked, revealed from its `_FILE`, and `TypeError` from `str()`.
+- **Existing projects**' `config.py` and tests are their own, so the template update brings only the pin
+  line. Where tag-check has already moved it (mitm-proxy is on v0.2.0), keep theirs. A project still on
+  v0.1.x gets v0.2.0, which is breaking in two ways it may notice: a `one_of` value given in another case
+  resolves to the declared spelling (an `.upper()` on it becomes a no-op), and a check that returned a
+  value now replaces the setting's value, or is a `ConfigError` if that value is another kind. Its `cast()` calls keep working; switching to the accessors
+  is `docs/migrating/interpose-config.md`.
