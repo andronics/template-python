@@ -16,7 +16,8 @@ the PR from a branch and stop there for review. Copier writes the new `.copier-a
 
 ```sh
 git switch -c chore/stacked-templates
-S=$(mktemp -d)
+mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}"   # scratch goes here, not in /tmp (a small tmpfs)
+S=$(mktemp -d "${XDG_CACHE_HOME:-$HOME/.cache}/migrate.XXXXXX")
 cat > "$S/old.yml" <<'EOF'
 code_owners: '@metalayerlab/maintainers'
 dependabot_automerge: 'off'
@@ -48,8 +49,8 @@ EOF
 uvx copier copy --trust --defaults --skip-tasks --vcs-ref v0.1.18 --data-file "$S/old.yml" gh:metalayerlab/project-template "$S/A"
 ```
 
-The answers above are this repository's current ones, split by owner (base's identity; python's stack;
-`multi_arch` for the container overlay). Nothing is renamed and nothing is new.
+The answers above are this repository's current ones, split by owner (base's identity; python's stack).
+Nothing is renamed and nothing is new.
 
 ## 2. Apply the new templates in place, then 3-way merge what this repository had changed
 
@@ -117,6 +118,7 @@ scripts/check-docs-secrets.sh && scripts/check-markdown.sh   # with Docker
 
 Commit as `chore: move to template-base, template-python` and open the PR. In the
 PR body, list the conflicts you resolved and anything from step 3.
+Then remove the scratch directory, which nothing cleans up for you: `rm -rf "$S"`.
 
 ## 5. Branch protection (Stephen's step, not the agent's)
 
