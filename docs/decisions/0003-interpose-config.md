@@ -206,6 +206,32 @@ lands. So that the template change doesn't collide with theirs:
   runs changes until it migrates.
 - **Rollback:** pin the previous tag; a project can return to its own copy at any time.
 
+## Evidence from the first consumers (2026-11-02)
+
+The two hand switches merged: metalayerlab/mitm-proxy#10 (`ef5d483`, released in mitm-proxy v0.2.0) and
+metalayerlab/sluice#52 (`8352c53`). Both adopted interpose v0.1.0 in the shape described here. Checked
+against the merged code:
+
+- **The contract held.** Each `config.py` keeps `SETTINGS`, `CONFIG_ENV`, `Config` with `sources`,
+  `ConfigError` and `load_config(path=None, environ=None)`, so `cli.py` and `gen-wiki.py` needed no change.
+- **The migration lines are byte-identical** to the two blocks above, at the same place: the interpose pin
+  is the first dependency, and the `[tool.hatch.metadata]` block follows `[tool.hatch.build.targets.wheel]`.
+  `git` is on a `build:` line of `contrib/system-packages.txt` in both. Their next template update should
+  merge cleanly.
+- **Secrets confirm the rule.** mitm-proxy's `Config.proxy_auth` and `Config.ca_key` hold the `Secret`
+  (`cast(Secret, ...)` in `load_config`), and `reveal()` is called where each is used: the auth callback
+  and the CA's key PEM. Migration item 5 was fixed this way.
+- **Case is the project's job.** `one_of` accepts a value in any case but returns it unchanged. It checks,
+  it doesn't normalise. So both projects upper-case `log_level` in `load_config`, because the logging module
+  wants upper case. Until metalayerlab/interpose#8 lands (`one_of` normalising to the canonical choice, or
+  a transform hook on `Setting`), projects normalise case in `load_config`. The generated `load_config`
+  does the same for any level-style setting it ships, as the sketch above does for `log_level`.
+- **`check=` covers single-value project rules.** sluice has no cross-setting rule yet (`load_config`
+  holds only a placeholder comment), so `secrets.dir` above is an example of where one would go, not a
+  rule sluice has today. Its `env.expose` rules (variable names only, none of `SLUICE_*`) are a local
+  function, `_exposable`, passed as `check=`. mitm-proxy does the same for `proxy.auth`, `intercept.hosts`
+  and the middleware lists. Neither needed `load_config` for a rule about one value.
+
 ## Open questions
 
 1. **Approve after 0002 is implemented?** Recommend yes: without it no generated project ever hears of a
