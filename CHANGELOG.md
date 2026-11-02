@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.4](https://github.com/andronics/template-python/compare/v2.3.3...v2.3.4) (2026-11-02)
+
+
+### 🐛 Bug Fixes
+
+* the PR template asks whether a PR was generated, not by what ([#29](https://github.com/andronics/template-python/issues/29)) ([43f3241](https://github.com/andronics/template-python/commit/43f324122b3fedb1527795a7459ce6a4a1edb711))
+
 ## [2.3.3](https://github.com/andronics/template-python/compare/v2.3.2...v2.3.3) (2026-11-02)
 
 
