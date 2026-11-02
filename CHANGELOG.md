@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.3](https://github.com/andronics/template-python/compare/v2.0.2...v2.0.3) (2026-11-02)
+
+
+### 📚 Documentation
+
+* propose interpose config and a tag-check workflow ([#12](https://github.com/andronics/template-python/issues/12)) ([3dfbecd](https://github.com/andronics/template-python/commit/3dfbecd82b6a81b51549a837208663f4e87c6a7e))
+
 ## [2.0.2](https://github.com/andronics/template-python/compare/v2.0.1...v2.0.2) (2026-11-02)
 
 
