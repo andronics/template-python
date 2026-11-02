@@ -1,0 +1,10 @@
+[% if has_cli %]
+  "src/*/config.py",
+  "src/*/cli.py",
+[% endif %]
+[% if kind == 'service' %]
+  "src/*/api.py",
+[% endif %]
+[% if kind == 'library' %]
+  "src/*/__init__.py",
+[% endif %]

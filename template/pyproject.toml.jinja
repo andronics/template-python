@@ -1,0 +1,90 @@
+[project]
+name = "[[ project_name ]]"
+# Owned by release-please: never edit by hand (see the wiki's Release-Process page).
+version = "0.0.0"
+description = [[ description | tojson ]]
+readme = "README.md"
+requires-python = ">=[[ python_version ]]"
+[% if license == 'Proprietary' %]
+license = "LicenseRef-Proprietary"
+[% else %]
+license = "[[ license ]]"
+[% endif %]
+dependencies = [
+[% if has_cli %]
+    "pyyaml>=6.0",
+    "typer>=0.15",
+[% endif %]
+[% if kind == 'service' %]
+    "fastapi>=0.115",
+    "uvicorn>=0.34",
+[% endif %]
+]
+
+[% if has_cli %]
+[project.scripts]
+[[ project_name ]] = "[[ package_name ]].cli:main"
+
+[% endif %]
+[project.urls]
+Homepage = "[[ repo_url ]]"
+Documentation = "[[ repo_url ]]/wiki"
+Changelog = "[[ repo_url ]]/blob/main/CHANGELOG.md"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.15",
+    "pytest>=8.3",
+    "pytest-cov>=6.0",
+    "ruff>=0.11",
+[% if has_cli %]
+    "types-pyyaml",
+[% endif %]
+[% if kind == 'service' %]
+    "httpx2>=2.0",
+[% endif %]
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/[[ package_name ]]"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py[[ python_version | replace('.', '') ]]"
+# Workaround: base's script is wrapped at 120, so ruff check and ruff format both fail on it
+# (https://github.com/andronics/template-base/issues/6). Drop this when that lands.
+extend-exclude = ["scripts/base-contract.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "S", "T20"]
+
+[tool.ruff.lint.per-file-ignores]
+# assert is how pytest checks; scripts print, and run git, by design.
+"tests/*" = ["S101"]
+"scripts/*" = ["T20", "S603", "S607"]
+
+[tool.mypy]
+strict = true
+files = ["src/[[ package_name ]]", "tests", "scripts"]
+
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers --strict-config --cov --cov-report=term-missing:skip-covered"
+testpaths = ["tests"]
+markers = ["integration: talks to real external systems; deselect with -m 'not integration'"]
+# A deprecation fails the dependency bump that brings it, not a later run.
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["[[ package_name ]]"]
+omit = ["*/__main__.py"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+skip_covered = true
+exclude_also = ["if __name__ == .__main__.:", "if TYPE_CHECKING:"]

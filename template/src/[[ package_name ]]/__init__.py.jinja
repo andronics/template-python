@@ -1,0 +1,20 @@
+[#! Escaped and wrapped, so a long or quoted description passes ruff (#52). !#]
+[% set doc = description | replace('\\', '\\\\') | replace('"', '\\"') | wordwrap(96, break_long_words=false, break_on_hyphens=false) %]
+[% if '\n' in doc %]
+"""[[ doc ]]
+"""
+[% else %]
+"""[[ doc ]]"""
+[% endif %]
+
+from importlib.metadata import PackageNotFoundError, metadata, version
+
+try:
+    __version__ = version("[[ project_name ]]")
+    # pyproject.toml's description, read rather than repeated as a literal ruff would have to wrap.
+    __description__ = metadata("[[ project_name ]]")["Summary"]
+except PackageNotFoundError:  # pragma: no cover - a source tree that was never installed
+    __version__ = "0+unknown"
+    __description__ = ""
+
+__all__ = ["__description__", "__version__"]

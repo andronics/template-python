@@ -1,0 +1,8 @@
+| `[[ package_name ]]/__init__.py` | Package version |
+[% if has_cli %]
+| `[[ package_name ]]/config.py` | Settings and their precedence (`_FILE` > env > file > default) |
+| `[[ package_name ]]/cli.py` | The `[[ project_name ]]` command (Typer) |
+[% endif %]
+[% if kind == 'service' %]
+| `[[ package_name ]]/api.py` | The HTTP API (FastAPI): health, readiness, version |
+[% endif %]

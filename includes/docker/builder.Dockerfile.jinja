@@ -1,0 +1,26 @@
+# Dependencies, then the package, into /opt/venv
+
+COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /bin/uv
+
+# From the lock file, compiled, without dev dependencies, with the base image's
+# Python (never a downloaded one)
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=never
+
+WORKDIR /build
+
+[#! The optional extras named by the Copier answer `image_extras` (#63). None: no flag,
+    so the rendered file is unchanged. !#]
+[% set extras = ' --all-extras' if image_extras == ['*'] else ((' --extra ' ~ image_extras | join(' --extra ')) if image_extras else '') %]
+# Dependencies first, so a source change doesn't reinstall them
+[% if image_extras %]
+# with the optional extras the Copier answer `image_extras` names
+[% endif %]
+COPY pyproject.toml uv.lock README.md ./
+RUN uv sync --frozen --no-dev --no-install-project[[ extras ]]
+
+COPY src/ ./src/
+RUN uv sync --frozen --no-dev --no-editable[[ extras ]]
+

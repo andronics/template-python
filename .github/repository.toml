@@ -1,0 +1,4 @@
+# GitHub's About box for this repository.
+description = "Copier stack overlay for Python projects (uv, ruff, mypy, pytest) on template-base: CI, releases, the wiki, the image"
+homepage = ""
+topics = ["copier", "copier-template", "python", "uv", "template"]

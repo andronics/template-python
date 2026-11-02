@@ -1,0 +1,6 @@
+```sh
+git clone [[ repo_url ]] && cd [[ project_name ]]
+uv sync                                  # Python >= [[ python_version ]]: uv fetches it if needed
+uv tool install pre-commit && pre-commit install -t pre-commit -t commit-msg
+uv run pytest                            # all green before you start
+```

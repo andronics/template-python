@@ -1,0 +1,3 @@
+- ruff (lint + format, line length 100) and mypy `--strict` decide formatting and typing. Don't argue with them in review.
+- Comments explain *why*. Logging goes through `logging`; only the CLI prints.
+- Settings go through `config.SETTINGS`. Secrets come from `_FILE`, and are never logged.

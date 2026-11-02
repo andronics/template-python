@@ -1,0 +1,5 @@
+| `tests/unit/` | Fast and offline: no network, no real external systems. Most tests. |
+| `tests/integration/` | Real dependencies, marked `@pytest.mark.integration`; skipped unless `RUN_INTEGRATION=1` |
+[% if has_cli %]
+| `tests/conftest.py` | Shared fixtures: `clean_env` (no `[[ env_prefix ]]*` leakage), `write_config` |
+[% endif %]

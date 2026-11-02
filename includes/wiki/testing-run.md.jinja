@@ -1,0 +1,15 @@
+```sh
+uv run pytest                                            # unit tests, with an 80% coverage floor
+[% if has_cli %]
+uv run pytest tests/unit/test_config.py -k env --no-cov  # a subset, no coverage floor
+[% else %]
+uv run pytest tests/unit/test_version.py --no-cov        # a subset, no coverage floor
+[% endif %]
+RUN_INTEGRATION=1 uv run pytest -m integration --no-cov  # integration tests (real external systems), no coverage floor
+```
+
+CI runs the unit tests on every supported Python version, together with ruff, mypy (strict), the wiki checks and the manifest checks. All of them block a merge.
+[% if integration_ci %]
+
+The **Integration tests** job runs the integration tests too, with every package in `contrib/system-packages.txt`[% if integration_extras %] and the extras the Copier answer `integration_extras` names[% endif %]. It fails if no test runs or one is skipped, so a missing package or device fails it rather than passing it.
+[% endif %]

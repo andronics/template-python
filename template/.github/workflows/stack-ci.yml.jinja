@@ -1,0 +1,147 @@
+# Template-owned: template-python. The stack slot base-ci.yml's required `ci` job calls:
+# the jobs that need the project installed. Cheap checks (the wiki standard, version and
+# lock file) run in base-ci's `checks` job through scripts/checks.d/20-python.sh.
+name: Stack
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+[% set pythons = ['3.13', '3.14'] | select('ge', python_version) | list %]
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [[ pythons | tojson ]]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+
+      # The `build:` packages in contrib/system-packages.txt (project-owned), for
+      # dependencies that build from source. None listed: nothing is installed.
+      - name: System packages
+        run: |
+          if grep -q '^build:.*[^[:space:]]' contrib/system-packages.txt; then
+            sudo apt-get update
+            sed -n 's/^build://p' contrib/system-packages.txt | xargs sudo apt-get install -y --no-install-recommends
+          fi
+
+      - name: Install (from the lock file)
+        run: uv sync --locked
+
+      - name: Lint
+        run: uv run ruff check
+
+      - name: Format
+        run: uv run ruff format --check
+
+      - name: Type check
+        run: uv run mypy
+
+      - name: Tests (with coverage floor)
+        run: uv run pytest
+
+      - name: Import and entry-point smoke test
+        run: |
+          uv run python -c "import [[ package_name ]]; print('[[ package_name ]]', [[ package_name ]].__version__)"
+[% if has_cli %]
+          uv run [[ project_name ]] --help > /dev/null
+[% endif %]
+
+      - name: Generated wiki sections are current
+        if: matrix.python-version == '[[ python_version ]]'
+        run: uv run scripts/gen-wiki.py --check
+[% if integration_ci %]
+[% set extras = ' --all-extras' if integration_extras == ['*'] else ((' --extra ' ~ integration_extras | join(' --extra ')) if integration_extras else '') %]
+
+  # The Copier answer `integration_ci`: the tests marked `integration`. It fails, never
+  # passes vacuously, when none runs or one is skipped (a missing package or device).
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          python-version: "[[ python_version ]]"
+          enable-cache: true
+
+      # Both lists in contrib/system-packages.txt: `build:` to install the dependencies,
+      # `runtime:` for the tests to use them.
+      - name: System packages
+        run: |
+          if grep -qE '^(build|runtime):.*[^[:space:]]' contrib/system-packages.txt; then
+            sudo apt-get update
+            sed -nE 's/^(build|runtime)://p' contrib/system-packages.txt | xargs sudo apt-get install -y --no-install-recommends
+          fi
+
+[% if integration_extras %]
+      # with the optional extras the Copier answer `integration_extras` names
+[% endif %]
+      - name: Install (from the lock file)
+        run: uv sync --locked[[ extras ]]
+
+      # pytest fails when no test is selected. The coverage floor is the Test job's.
+      - name: Integration tests
+        env:
+          RUN_INTEGRATION: "1"
+        run: uv run pytest -m integration --no-cov --junitxml="$RUNNER_TEMP/integration.xml"
+
+      - name: No integration test was skipped
+        run: |
+          python3 - "$RUNNER_TEMP/integration.xml" <<'EOF'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          skipped = [
+              f"{case.get('classname')}.{case.get('name')}: {skip.get('message')}"
+              for case in ET.parse(sys.argv[1]).iter("testcase")
+              if (skip := case.find("skipped")) is not None and skip.get("type") != "pytest.xfail"
+          ]
+          for test in skipped:
+              print(f"::error::skipped {test}")
+          sys.exit(1 if skipped else 0)
+          EOF
+[% endif %]
+
+  markdown:
+    name: Markdown lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The image, globs and config live in the script, so a local run matches this one.
+      - name: markdownlint
+        run: scripts/check-markdown.sh
+[% if container_image or contrib %]
+
+  manifests:
+    name: Dockerfile and contrib manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install validators
+        run: |
+          mkdir -p "$HOME/.local/bin"
+[% if container_image %]
+          curl -fsSL -o "$HOME/.local/bin/hadolint" \
+            https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-linux-x86_64
+          chmod +x "$HOME/.local/bin/hadolint"
+[% endif %]
+[% if 'k8s' in contrib %]
+          curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz \
+            | tar -xz -C "$HOME/.local/bin" kubeconform
+[% endif %]
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Validate
+        run: scripts/check-manifests.sh
+[% endif %]
