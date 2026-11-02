@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.2](https://github.com/andronics/template-python/compare/v2.3.1...v2.3.2) (2026-11-02)
+
+
+### 📚 Documentation
+
+* migrating a project with no template history ([#25](https://github.com/andronics/template-python/issues/25)) ([613524d](https://github.com/andronics/template-python/commit/613524d7d9dfc3ce4fb747de9108e378e3b16b02))
+
 ## [2.3.1](https://github.com/andronics/template-python/compare/v2.3.0...v2.3.1) (2026-11-02)
 
 
