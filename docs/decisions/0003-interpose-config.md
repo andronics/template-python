@@ -2,7 +2,7 @@
 
 <!-- Add a line for this record to the index in docs/decisions/README.md (CI checks). -->
 
-Status: Proposed
+Status: Accepted (2026-11-02)
 Date: 2026-11-02
 Authors: Stephen Cox; drafted by Claude (Claude Code)
 
@@ -50,19 +50,22 @@ the `config` command's output and the generated settings table don't change.
 ```python
 from interpose.settings import ConfigError, Setting, Settings, one_of, port
 
+ENV_PREFIX = "[[ env_prefix ]]"
+DEFAULT_CONFIG_PATH = Path("/etc/[[ project_name ]]/config.yaml")
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
 
 SETTINGS = Settings(
-    "[[ env_prefix ]]",
+    ENV_PREFIX,
     (
         Setting("log_level", "INFO", "Log level: ...", check=one_of(*LOG_LEVELS)),
         Setting("listen.port", [[ port ]], "Port the HTTP server listens on.", check=port),  # service
         ...
     ),
-    default_path=Path("/etc/[[ project_name ]]/config.yaml"),
+    default_path=DEFAULT_CONFIG_PATH,
 )
 CONFIG_ENV = SETTINGS.config_env
-__all__ = ["CONFIG_ENV", "SETTINGS", "Config", "ConfigError", "load_config"]
+__all__ = ["CONFIG_ENV", "DEFAULT_CONFIG_PATH", "ENV_PREFIX", "LOG_LEVELS", "SETTINGS", "Config",
+           "ConfigError", "load_config"]  # the tests' conftest.py reads ENV_PREFIX
 
 
 def load_config(path: Path | None = None, environ: Mapping[str, str] | None = None) -> Config:
@@ -79,12 +82,14 @@ out of `src/**`.
 **The contract** between it and the template-owned files, stated in its docstring: `config.py` exports
 `SETTINGS` (iterable; each item has `key`, `env`, `default`, `help`, `secret`, optionally `is_list`),
 `CONFIG_ENV`, `Config` (with `sources`), `ConfigError` and `load_config(path=None, environ=None)`.
-`cli.py`, its tests and `scripts/gen-wiki.py` use only these, so an unmigrated project's `config.py`
-satisfies them too.
+`cli.py` and `scripts/gen-wiki.py` use only these, so an unmigrated project's `config.py` satisfies them
+too. `test_cli.py`'s masking test builds a `Setting`: it imports it from `interpose.settings`, since
+strict mypy doesn't take a name `config.py` imports but leaves out of `__all__`.
 
 `test_config.py` keeps the project's behaviour (each source end to end, defaults, the log level and port
 rules, a non-mapping file, invalid YAML matching `cannot parse`) and drops the coercion tests, which are
-interpose's.
+interpose's. It pins `[(s.key, s.env) for s in SETTINGS]`, as sluice's does, so renaming a variable
+fails a test.
 
 ### The dependency: every `service` and `cli`, no Copier question
 
@@ -111,7 +116,8 @@ no installer can take a PyPI `interpose` instead ([0002](0002-tag-check-workflow
 
 ### What else the template changes
 
-- **Dockerfile builder:** installs `git` for `has_cli`. uv 0.13.6 locks a GitHub dependency without git,
+- **Dockerfile builder:** installs `git`, before the `build:` packages. Only `service` and `cli` can have
+  an image (`container_image` isn't asked for a library), so it is unconditional. uv 0.13.6 locks a GitHub dependency without git,
   but `uv sync --frozen` fails with "Git executable not found" in `python:3.13-slim` (checked). Builder
   stage only; the runtime image is unchanged.
 - **`dependabot.yml`:** the `uv` entry ignores `interpose` for `has_cli` (0002, squatting).
@@ -131,9 +137,10 @@ no installer can take a PyPI `interpose` instead ([0002](0002-tag-check-workflow
   and the code calls `.reveal()` at the point of use (a header, a connection string). `str()` or an
   f-string gives `********`, silently: a wrong credential is sent, not leaked, but nothing fails at load.
   So `load_config` narrows with `cast(Secret, ...)`, never `str(...)`, and the skeleton does the same for
-  its non-secret values (`cast(str, ...)`), so the pattern copied is the safe one.
+  its non-secret values (`cast(str, ...)`), so the pattern copied is the safe one. Typed accessors that
+  refuse a secret are [metalayerlab/interpose#13](https://github.com/metalayerlab/interpose/issues/13).
 - `.agents/stack.md`'s Config line gains one sentence: "A secret is a `Secret`: `.reveal()` where it's
-  used; `str()` gives `********`." About 70 characters.
+  used; `str()` gives `********`." 83 characters.
 
 ### Migration, and the interpose switches already under way
 
@@ -185,7 +192,8 @@ lands. So that the template change doesn't collide with theirs:
 - **Dropping `pyyaml` from the dependencies**, since interpose brings it. Every project's merged
   `pyproject.toml` would lose a line its own code may need. *Rejected.*
 - **Typed accessors instead of `cast`** (`Resolved.str("key")`, `.secret("key")`). Better, but interpose's
-  API, not this template's: open question 3.
+  API, not this template's: resolved question 3,
+  [metalayerlab/interpose#13](https://github.com/metalayerlab/interpose/issues/13).
 
 ## Consequences
 
@@ -197,11 +205,12 @@ lands. So that the template change doesn't collide with theirs:
   stricter engine and different error texts. Tests that match old messages change.
 - **Network:** locking and building need GitHub, as they already need PyPI. A builder stage gets bigger by
   git's packages.
-- **`.agents/stack.md` budget:** about 70 characters more. Base's `AGENTS.md` and this file share 9,000,
-  and the skeleton may use 75% (6,750). The largest render today (`service` with an image) is 6,042, so
-  about 6,110 after; the budget test is the check.
+- **`.agents/stack.md` budget:** 83 characters more. Base's `AGENTS.md` and this file share 9,000,
+  and the skeleton may use 75% (6,750). The largest render (`service` with an image) went from 6,042 to
+  6,121 (measured); the budget test is the check.
 - **Wiki** (new projects; these pages are project-owned): In-Depth-Configuration says the engine is
-  interpose. Release-Process (template-owned) says interpose bumps come from tag-check.
+  interpose, and it and Security say a secret goes in its `_FILE` variable, not that only `_FILE` is read
+  (resolved question 4). Release-Process (template-owned) says interpose bumps come from tag-check.
 - **Release:** `feat:` in template-python, a minor release. Not breaking: nothing an existing project
   runs changes until it migrates.
 - **Rollback:** pin the previous tag; a project can return to its own copy at any time.
@@ -214,10 +223,12 @@ against the merged code:
 
 - **The contract held.** Each `config.py` keeps `SETTINGS`, `CONFIG_ENV`, `Config` with `sources`,
   `ConfigError` and `load_config(path=None, environ=None)`, so `cli.py` and `gen-wiki.py` needed no change.
-- **The migration lines are byte-identical** to the two blocks above, at the same place: the interpose pin
-  is the first dependency, and the `[tool.hatch.metadata]` block follows `[tool.hatch.build.targets.wheel]`.
-  `git` is on a `build:` line of `contrib/system-packages.txt` in both. Their next template update should
-  merge cleanly.
+- **The migration lines were byte-identical** to the two blocks above when they merged, at the same place:
+  the interpose pin is the first dependency, and the `[tool.hatch.metadata]` block follows
+  `[tool.hatch.build.targets.wheel]`. `git` is on a `build:` line of `contrib/system-packages.txt` in both.
+  Both have since moved the pin to `v0.1.2` (interpose's metrics and pipeline releases, which the skeleton
+  doesn't need), so the template stays at `v0.1.0` and their next template update has the one-line pin
+  conflict migration item 2 predicts: keep theirs. The `[tool.hatch.metadata]` block still merges cleanly.
 - **Secrets confirm the rule.** mitm-proxy's `Config.proxy_auth` and `Config.ca_key` hold the `Secret`
   (`cast(Secret, ...)` in `load_config`), and `reveal()` is called where each is used: the auth callback
   and the CA's key PEM. Migration item 5 was fixed this way.
@@ -232,20 +243,23 @@ against the merged code:
   function, `_exposable`, passed as `check=`. mitm-proxy does the same for `proxy.auth`, `intercept.hosts`
   and the middleware lists. Neither needed `load_config` for a rule about one value.
 
-## Open questions
+## Resolved questions
 
-1. **Approve after 0002 is implemented?** Recommend yes: without it no generated project ever hears of a
-   new interpose tag, and 0020's "Dependabot proposes interpose bumps" turned out false.
-2. **Bring the dependency to existing projects before they migrate `config.py`?** Recommend yes: it's
-   harmless unused, it's the first step of the migration anyway, and holding it back would need a Copier
-   question or a second release.
-3. **`cast` in the skeleton, or typed accessors in interpose first?** Recommend `cast` now and an interpose
-   issue for `Resolved.str/int/bool/list/secret` (raising `TypeError` on the wrong kind); the skeleton
-   switches when that is tagged.
-4. **The Security page says secrets are read "from files only, never from the
-   config file"**, but both engines accept a secret from the environment and the YAML file too. Fix the
-   wording for new projects ("use `_FILE`"), or make interpose refuse other sources for `secret=True`?
-   Recommend the wording: refusing is a breaking change in interpose for any deployment that sets the
-   plain variable, which the template can't see, and interpose's call, not this record's.
-5. **A check that a project's `config.py` still has its own engine?** Recommend no, as 0020 did: a
-   project may keep its copy on purpose, and the migration prompt is enough.
+Stephen accepted every recommended answer on 2026-11-02.
+
+1. **Approve after 0002 is implemented?** Yes, and it is (andronics/template-python#14): without it no
+   generated project hears of a new interpose tag, and 0020's "Dependabot proposes interpose bumps" turned
+   out false.
+2. **Bring the dependency to existing projects before they migrate `config.py`?** Yes: it's harmless
+   unused, it's the first step of the migration anyway, and holding it back would need a Copier question or
+   a second release.
+3. **`cast` in the skeleton, or typed accessors in interpose first?** `cast` now, and
+   [metalayerlab/interpose#13](https://github.com/metalayerlab/interpose/issues/13) for
+   `Resolved.str/int/bool/list/secret` (raising `TypeError` on the wrong kind); the skeleton switches when
+   that is tagged.
+4. **The Security page said secrets are read "from files only, never from the config file"**, but both
+   engines accept a secret from the environment and the YAML file too. The wording is fixed for new
+   projects: give a secret through its `_FILE` variable. interpose doesn't refuse other sources for
+   `secret=True`: that would break any deployment that sets the plain variable, and it's interpose's call.
+5. **A check that a project's `config.py` still has its own engine?** No, as 0020 decided: a project may
+   keep its copy on purpose, and the migration prompt (`docs/migrating/interpose-config.md`) is enough.

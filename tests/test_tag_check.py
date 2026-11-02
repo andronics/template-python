@@ -16,6 +16,7 @@ from typing import Any
 
 import pytest
 import yaml
+from conftest import MATRIX
 from stacking import GIT, ROOT, sh
 
 SCRIPT = ROOT / "template/scripts/tag-check.py"
@@ -311,7 +312,18 @@ def test_workflow(project: Path) -> None:
     assert "python3 scripts/tag-check.py" in steps[-1]["run"]
 
 
-def test_rendered_script_is_a_no_op(project: Path) -> None:
-    """A new project has no tag-pinned dependency: the run says so and exits 0."""
-    result = subprocess.run([sys.executable, "scripts/tag-check.py"], cwd=project, capture_output=True, text=True)
-    assert (result.returncode, result.stdout) == (0, "tag-check: no tag-pinned git dependencies\n"), result.stderr
+def test_rendered_script(project: Path, variant: str, tmp_path: Path) -> None:
+    """A new library has no tag-pinned dependency: the run says so and exits 0. A service or cli has
+    interpose (decision 0003), which a run finds; a dry run against fixture tags changes nothing."""
+    cmd = [sys.executable, "scripts/tag-check.py"]
+    if MATRIX[variant]["kind"] == "library":
+        result = subprocess.run(cmd, cwd=project, capture_output=True, text=True)
+        assert (result.returncode, result.stdout) == (0, "tag-check: no tag-pinned git dependencies\n"), result.stderr
+        return
+    tags = tmp_path / "tags.json"
+    tags.write_text(json.dumps({"metalayerlab/interpose": ["v0.1.0", "v0.1.1"]}))
+    before = (project / "pyproject.toml").read_text()
+    result = subprocess.run([*cmd, "--dry-run", "--tags-from", str(tags)], cwd=project, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert "chore(deps): bump interpose from v0.1.0 to v0.1.1\n" in result.stdout, result.stdout  # no "(breaking)"
+    assert (project / "pyproject.toml").read_text() == before

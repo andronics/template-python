@@ -12,6 +12,7 @@ license = "[[ license ]]"
 [% endif %]
 dependencies = [
 [% if has_cli %]
+    "interpose @ git+https://github.com/metalayerlab/interpose@v0.1.0",
     "pyyaml>=6.0",
     "typer>=0.15",
 [% endif %]
@@ -51,6 +52,12 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/[[ package_name ]]"]
+[% if has_cli %]
+
+[tool.hatch.metadata]
+# interpose is pinned by its git URL, not PyPI (template-python decision 0003)
+allow-direct-references = true
+[% endif %]
 
 [tool.ruff]
 line-length = 100

@@ -10,56 +10,64 @@ Every setting can come from four places, and the first one that has it wins:
 ``<NAME>`` is the dotted key in upper case, with the dots as underscores:
 ``listen.port`` is ``[[ env_prefix ]]LISTEN_PORT``.
 
-To add a setting, add it to SETTINGS and to Config, and read it in load_config.
-A list setting (``is_list=True``, default ``""``) is a YAML list or a comma-separated string.
-The wiki's settings table is generated from SETTINGS (``scripts/gen-wiki.py``),
-so write its help as you want users to read it. Values are never logged;
-only where each one came from is.
+The engine (lookup order, strict coercion, ``check=``, ``Secret``) is interpose's
+(template-python decision 0003); this module holds the project's settings and its own rules.
+Its contract with the template-owned files (``cli.py``, ``scripts/gen-wiki.py``): it exports
+SETTINGS (each item has key, env, default, help, secret, is_list), CONFIG_ENV, Config (with
+``sources``), ConfigError and ``load_config(path=None, environ=None)``.
+
+To add a setting, add it to SETTINGS and to Config, and read it in load_config. A rule on one
+value goes in the setting's ``check=``; a rule across settings goes in load_config. A list
+setting (``is_list=True``, default ``""``) is a YAML list or a comma-separated string. A
+``secret=True`` setting resolves to a ``Secret``: hold it as one in Config and call ``reveal()``
+where it's used, since ``str()`` gives ``********``. The wiki's settings table is generated from
+SETTINGS (``scripts/gen-wiki.py``), so write its help as you want users to read it. Values are
+never logged; only where each one came from is.
 """
 
 from __future__ import annotations
 
-import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import cast
 
-import yaml
+from interpose.settings import ConfigError, Setting, Settings, one_of[% if kind == 'service' %], port[% endif %]
+
+
+__all__ = [
+    "CONFIG_ENV",
+    "DEFAULT_CONFIG_PATH",
+    "ENV_PREFIX",
+    "LOG_LEVELS",
+    "SETTINGS",
+    "Config",
+    "ConfigError",
+    "load_config",
+]
 
 ENV_PREFIX = "[[ env_prefix ]]"
-CONFIG_ENV = f"{ENV_PREFIX}CONFIG"
 DEFAULT_CONFIG_PATH = Path("/etc/[[ project_name ]]/config.yaml")
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
 
-Value = str | int | bool | tuple[str, ...]
-
-
-class ConfigError(Exception):
-    """The configuration can't be read, or a value in it is invalid."""
-
-
-@dataclass(frozen=True)
-class Setting:
-    key: str
-    default: Value
-    help: str
-    secret: bool = False
-    is_list: bool = False
-
-    @property
-    def env(self) -> str:
-        return ENV_PREFIX + self.key.upper().replace(".", "_")
-
-
-SETTINGS: tuple[Setting, ...] = (
-    Setting("log_level", "INFO", "Log level: `DEBUG`, `INFO`, `WARNING` or `ERROR`."),
+SETTINGS = Settings(
+    ENV_PREFIX,
+    (
+        Setting(
+            "log_level",
+            "INFO",
+            "Log level: `DEBUG`, `INFO`, `WARNING` or `ERROR`.",
+            check=one_of(*LOG_LEVELS),
+        ),
 [% if kind == 'service' %]
-    Setting("listen.host", "0.0.0.0", "Address the HTTP server binds to."),  # noqa: S104
-    Setting("listen.port", [[ port ]], "Port the HTTP server listens on."),
-    Setting("state_dir", "/var/lib/[[ project_name ]]", "Directory for persistent state."),
+        Setting("listen.host", "0.0.0.0", "Address the HTTP server binds to."),  # noqa: S104
+        Setting("listen.port", [[ port ]], "Port the HTTP server listens on.", check=port),
+        Setting("state_dir", "/var/lib/[[ project_name ]]", "Directory for persistent state."),
 [% endif %]
+    ),
+    default_path=DEFAULT_CONFIG_PATH,
 )
+CONFIG_ENV = SETTINGS.config_env
 
 
 @dataclass(frozen=True)
@@ -74,106 +82,20 @@ class Config:
     sources: Mapping[str, str] = field(default_factory=dict)
 
 
-def _lookup(data: Mapping[str, Any], dotted: str) -> Any:
-    node: Any = data
-    for part in dotted.split("."):
-        if not isinstance(node, Mapping) or part not in node:
-            return None
-        node = node[part]
-    return node
-
-
-def _coerce(setting: Setting, raw: Any) -> Value:
-    """Give raw (a string from the environment, or a YAML value) the default's type."""
-    try:
-        if setting.is_list:
-            items = raw if isinstance(raw, list) else str(raw).split(",")
-            if isinstance(raw, dict | set) or any(isinstance(i, dict | list | set) for i in items):
-                raise ValueError(raw)
-            return tuple(text for i in items if (text := str(i).strip()))
-        if isinstance(setting.default, bool):
-            if isinstance(raw, bool):
-                return raw
-            text = str(raw).strip().lower()
-            if text in {"1", "true", "yes", "on"}:
-                return True
-            if text in {"0", "false", "no", "off"}:
-                return False
-            raise ValueError(raw)
-        if isinstance(setting.default, int):
-            # int() would truncate a YAML float (0.5 -> 0) and take a bool as 0/1.
-            if isinstance(raw, bool) or not isinstance(raw, int | str):
-                raise ValueError(raw)
-            return int(raw)
-        # str() would turn a YAML list or mapping into its repr; scalars (1, 2.5) are fine.
-        if isinstance(raw, dict | list | set):
-            raise ValueError(raw)
-    except ValueError:
-        kind = "list" if setting.is_list else type(setting.default).__name__
-        raise ConfigError(f"{setting.key}: expected {kind}, got {raw!r}") from None
-    return str(raw)
-
-
-def resolve(
-    setting: Setting, data: Mapping[str, Any], environ: Mapping[str, str]
-) -> tuple[Value, str]:
-    """The setting's value and where it came from."""
-    file_var = f"{setting.env}_FILE"
-    if file_var in environ:
-        path = Path(environ[file_var])
-        try:
-            return _coerce(setting, path.read_text(encoding="utf-8").strip()), file_var
-        except OSError as e:
-            raise ConfigError(f"cannot read {file_var} ({path}): {e.strerror}") from e
-    if setting.env in environ:
-        return _coerce(setting, environ[setting.env]), setting.env
-    value = _lookup(data, setting.key)
-    if value is not None:
-        return _coerce(setting, value), "file"
-    return (_coerce(setting, setting.default) if setting.is_list else setting.default), "default"
-
-
-def read_file(path: Path) -> dict[str, Any]:
-    try:
-        loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        return {}
-    except (OSError, yaml.YAMLError) as e:
-        raise ConfigError(f"cannot read {path}: {e}") from e
-    if loaded is None:
-        return {}
-    if not isinstance(loaded, dict):
-        raise ConfigError(f"{path}: the top level must be a mapping")
-    return loaded
-
-
 def load_config(path: Path | None = None, environ: Mapping[str, str] | None = None) -> Config:
     """Load the configuration. A missing config file is not an error: defaults apply."""
-    env = os.environ if environ is None else environ
-    if path is None:
-        path = Path(env.get(CONFIG_ENV, str(DEFAULT_CONFIG_PATH)))
-    data = read_file(path)
-
-    values: dict[str, Any] = {}  # each value has its setting's type
-    sources: dict[str, str] = {}
-    for setting in SETTINGS:
-        values[setting.key], sources[setting.key] = resolve(setting, data, env)
-
-    log_level = str(values["log_level"]).upper()
-    if log_level not in LOG_LEVELS:
-        raise ConfigError(f"log_level: expected one of {', '.join(LOG_LEVELS)}, got {log_level!r}")
-[% if kind == 'service' %]
-    port = int(values["listen.port"])
-    if not 0 < port < 65536:
-        raise ConfigError(f"listen.port: {port} is not a TCP port")
-[% endif %]
-
+    resolved = SETTINGS.resolve(path, environ)
+    # Each value already has its setting's type (a secret=True one is a Secret: cast it to
+    # Secret, never str()), so cast() only tells mypy which type that is.
+    v = resolved.values
+    # Cross-setting rules go here; a rule on one value is its setting's check=.
     return Config(
-        log_level=log_level,
+        # one_of() checks in any case and keeps the case given; logging wants upper case.
+        log_level=cast(str, v["log_level"]).upper(),
 [% if kind == 'service' %]
-        host=str(values["listen.host"]),
-        port=port,
-        state_dir=Path(str(values["state_dir"])),
+        host=cast(str, v["listen.host"]),
+        port=cast(int, v["listen.port"]),
+        state_dir=Path(cast(str, v["state_dir"])),
 [% endif %]
-        sources=sources,
+        sources=dict(resolved.sources),
     )
