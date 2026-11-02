@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.2](https://github.com/andronics/template-python/compare/v2.0.1...v2.0.2) (2026-11-02)
+
+
+### 📚 Documentation
+
+* migration scratch off /tmp, and interpose has no container overlay ([#9](https://github.com/andronics/template-python/issues/9)) ([ddf46b0](https://github.com/andronics/template-python/commit/ddf46b0e0dcad648ee50c8c3e7284532b85e3c6c))
+
 ## [2.0.1](https://github.com/andronics/template-python/compare/v2.0.0...v2.0.1) (2026-11-02)
 
 
