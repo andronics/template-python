@@ -2,7 +2,7 @@
 
 <!-- Add a line for this record to the index in docs/decisions/README.md (CI checks). -->
 
-Status: Proposed
+Status: Accepted (2026-11-02)
 Date: 2026-11-02
 Authors: Stephen Cox; drafted by Claude (Claude Code)
 
@@ -126,10 +126,11 @@ doesn't use (Context), so this workflow stays.
   `interpose`, which a non-uv installer takes from PyPI: it trades a bot gap for a squatting hole.
   *Rejected.*
 - **Register a placeholder `interpose` on PyPI.** Closes the Dependabot path for everyone, but interpose's
-  0001 rejected owning a PyPI name. Left to Stephen (open question 4).
+  0001 rejected owning a PyPI name, and the `dependabot.yml` ignore already closes it. *Rejected*
+  (resolved question 4).
 - **Dispatch `ci` on the branch when the token is `GITHUB_TOKEN`** (`gh workflow run base-ci.yml --ref`,
   which `GITHUB_TOKEN` may do). It works, but this overlay would name base's workflow file and depend on
-  its `workflow_dispatch` trigger. *Rejected* for the close-and-reopen note (open question 2).
+  its `workflow_dispatch` trigger. *Rejected* for the close-and-reopen note (resolved question 2).
 - **One PR for all tag-pinned dependencies.** One bad bump blocks the rest; Dependabot's one PR per
   dependency is what reviewers already expect. *Rejected.*
 - **Inline Python in the workflow** (as `template-update.yml`'s `plan`). The parser and the semver choice
@@ -155,16 +156,18 @@ doesn't use (Context), so this workflow stays.
   `template-update.yml` does; nothing new.
 - **Rollback:** delete the workflow in a template release; open PRs are closed by hand.
 
-## Open questions
+## Resolved questions
 
-1. **Ship it before 0003 is approved?** Recommend yes: sluice and mitm-proxy depend on interpose as soon as
-   their switches merge, before any template change, so they need it first.
-2. **With `GITHUB_TOKEN`, is "close and reopen" in the PR body enough?** Recommend yes: every metalayerlab
-   and andronics repository that matters has the release App, and the alternative couples this overlay to
-   base's `base-ci.yml`.
-3. **Pick the highest tag, or the highest in the same major?** Recommend the highest, with "breaking" in
-   the title for a major (or `0.x` minor) bump: interpose is below 1.0, where every minor can break, and
-   holding back would hide the release that matters.
-4. **Register a placeholder `interpose` on PyPI?** Recommend not now: the `dependabot.yml` ignore closes the
-   only path that would install PyPI's package, at no cost. Revisit if interpose gains consumers outside
-   these templates.
+Stephen accepted every recommended answer on 2026-11-02.
+
+1. **Ship it before 0003 is approved?** Yes: sluice and mitm-proxy depend on interpose as soon as their
+   switches merge, before any template change, so they need it first.
+2. **With `GITHUB_TOKEN`, is "close and reopen" in the PR body enough?** Yes, without dispatching CI or
+   requiring the App: every metalayerlab and andronics repository that matters has the release App, and
+   the alternative couples this overlay to base's `base-ci.yml`.
+3. **Pick the highest tag, or the highest in the same major?** The highest, with "breaking" in the title
+   for a major (or `0.x` minor) bump: interpose is below 1.0, where every minor can break, and holding back
+   would hide the release that matters.
+4. **Register a placeholder `interpose` on PyPI?** No: the `dependabot.yml` ignore closes the only path
+   that would install PyPI's package, at no cost. Revisit if interpose gains consumers outside these
+   templates.

@@ -6,7 +6,6 @@ is for what maintainers (and their AI assistants) should know at a glance.
 ## Open
 
 - A thin `config.py` on interpose's settings engine, replacing project-template's 0020: proposed in [docs/decisions/0003](docs/decisions/0003-interpose-config.md); approve after 0002 is implemented
-- A tag-check workflow, because Dependabot can't update `git+https` tag pins (dependabot-core#16129): proposed in [docs/decisions/0002](docs/decisions/0002-tag-check-workflow.md); sluice and mitm-proxy need it once they depend on interpose
 
 ## Decided against (don't re-propose without reading this first)
 
