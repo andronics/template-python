@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.3](https://github.com/andronics/template-python/compare/v2.3.2...v2.3.3) (2026-11-02)
+
+
+### 🐛 Bug Fixes
+
+* the design-record template asks for people only as authors ([#27](https://github.com/andronics/template-python/issues/27)) ([ea9683d](https://github.com/andronics/template-python/commit/ea9683d197e4332bba78c06fec686e0449cd91d3))
+
 ## [2.3.2](https://github.com/andronics/template-python/compare/v2.3.1...v2.3.2) (2026-11-02)
 
 
