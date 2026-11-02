@@ -25,22 +25,22 @@ of them.
 
 - **A Python project is base + this overlay** (+ template-container for an image's workflows and the
   docker and k8s manifests). It writes `.copier-answers.stack-python.yml` and fails unless base is
-  `v1.0.0` or later (`base_check`, as template-obsidian's).
+  `v2.0.0` or later (`base_check`): v2.0.0 adds the PR-template and issue-config slots and the
+  `base_answers` pattern.
 - **Asks** `package_name`, `kind` (`service`, `cli`, `library`), `python_version`, `port`, `extra_ports`,
   `health_path`, `container_image`, `image_extras`, `contrib` (`docker`, `k8s`, `systemd`), `puid_pgid`,
   `timezone`, `integration_ci`, `integration_extras`: project-template's Python questions, unchanged, so
   an old answers file splits into the new ones without a rename. **`has_cli` stays derived**
   (`kind in [service, cli]`): a service's `serve` command lives in its CLI.
 - **Reads** `project_name`, `description`, `github_owner`, `code_owners`, `license`,
-  `copyright_holder` and `personal_data_guard` from base's answers file through `_external_data`, and
-  never asks them.
-- **`base_answers`:** this overlay's answers file also keeps a copy of those base values. `copier update`
-  renders the old and new versions in empty temporary directories, where `.copier-answers.base.yml` doesn't
-  exist, so `_external_data` is empty there. Each base value is read as
-  `_external_data.base.X | default(recorded_base.X)`, and `base_check` passes in that replay. Without
-  this, an update fails at the check, or renders base's values blank and conflicts on every line that uses
-  them (template-base#10; template-obsidian#1 has the same bug). The copy is never asked, and every
-  update refreshes it from base's file.
+  `copyright_holder` and `personal_data_guard` from base's answers, and never asks them.
+- **`base_answers`:** base's answers are recorded as an answer of this overlay, `base_answers`
+  (`ask: false`, never prompted; a validator rejects a copy that differs from base's file), exactly as
+  template-base's 0001 ("Overlays keep a copy of base's answers") and its stub stack do. `copier update`
+  replays each version in an empty directory without `.copier-answers.base.yml`; the recorded copy is what
+  the replays read. The values above are derived from `base_answers`, never from `_external_data`. The
+  check passes in a replay (no base file, a recorded copy) and checks the file in the real render, so this
+  overlay's first release is replay-safe and no project needs a `copier recopy`.
 - **`contrib` stays this stack's answer**, docker and k8s included, although template-container renders
   their manifests. This stack's wiki pages, `.standard.toml`, release-please's `extra-files` and the
   manifest check need it, and the stack is applied before the container overlay, so it can't read that
@@ -60,7 +60,9 @@ of them.
 - `.gitignore` (Python's entries plus base's), `.pre-commit-config.yaml` (ruff, mypy, gen-wiki,
   `scripts/checks.sh`, gitleaks, conventional commits), `.claude/settings.json` (base's permissions plus
   uv, ruff, mypy, pytest and the wiki scripts), `README.md` (template-owned, as before) and
-  `.github/dependabot.yml` (uv, actions, and docker with an image).
+  `.github/dependabot.yml` (uv, actions, and docker with an image), `.github/pull_request_template.md`
+  (project-template's code checklist, with base's "Template problem found?" item) and
+  `.github/ISSUE_TEMPLATE/config.yml` (the wiki's Documentation link and base's security-advisory link).
 
 ### Checks, release and the wiki
 
@@ -115,12 +117,8 @@ project-template v0.1.23 and the carved-out files render identically for every P
   the container overlay's, with an image), in one reviewed PR, after a 3-way merge of each template file
   (`docs/migrating/`). `ci.yml`, `release-please.yml`, `wiki.yml` and `docker-*.yml` are removed by hand:
   Copier never deletes files. Branch protection names `ci`.
-- Files a code stack can't extend, because base owns them (template-base 0001): the PR template's code
-  checklist and the issue forms' Documentation link (template-base#1; its PR #8 makes them slots, which
-  this overlay must then fill), Copilot's code rules (template-base#3), and CODEOWNERS' per-file lines for
-  `check-wiki.py` and `.standard.toml`.
-- `pyproject.toml` excludes base's `scripts/base-contract.py` from ruff until base wraps it at 100 columns
-  (template-base#6).
+- A file a code stack can't extend, because base owns it: CODEOWNERS, so its per-file lines for
+  `check-wiki.py` and `.standard.toml` are gone (the `*` owner still covers them).
 - `gen-wiki.py` reads `Setting.is_list` with `getattr`. A project's `config.py` is its own
   (`_skip_if_exists`), and one from before list settings (sluice's, v0.1.15) has no `is_list`.
 
@@ -128,6 +126,3 @@ project-template v0.1.23 and the carved-out files render identically for every P
 
 - **0020, a thin `config.py` on interpose:** still proposed in project-template. Recommendation: decide it
   here as its own record, now that the config skeleton lives in this overlay.
-- **template-base#8 (PR template and issue config as slots):** once it is released, this overlay ships
-  both files and raises `base_check`'s minimum to that version. Recommendation: do it in the same
-  release, so no project sees base require a slot this overlay doesn't fill yet.
