@@ -19,10 +19,10 @@ SETTINGS (each item has key, env, default, help, secret, is_list), CONFIG_ENV, C
 To add a setting, add it to SETTINGS and to Config, and read it in load_config. A rule on one
 value goes in the setting's ``check=``; a rule across settings goes in load_config. A list
 setting (``is_list=True``, default ``""``) is a YAML list or a comma-separated string. A
-``secret=True`` setting resolves to a ``Secret``: hold it as one in Config and call ``reveal()``
-where it's used, since ``str()`` gives ``********``. The wiki's settings table is generated from
-SETTINGS (``scripts/gen-wiki.py``), so write its help as you want users to read it. Values are
-never logged; only where each one came from is.
+``secret=True`` setting resolves to a ``Secret``: read it with ``resolved.secret(key)``, hold it
+as one in Config and call ``reveal()`` where it's used, since ``str()`` gives ``********``. The
+wiki's settings table is generated from SETTINGS (``scripts/gen-wiki.py``), so write its help as
+you want users to read it. Values are never logged; only where each one came from is.
 """
 
 from __future__ import annotations
@@ -30,7 +30,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import cast
 
 from interpose.settings import ConfigError, Setting, Settings, one_of[% if kind == 'service' %], port[% endif %]
 
@@ -85,17 +84,16 @@ class Config:
 def load_config(path: Path | None = None, environ: Mapping[str, str] | None = None) -> Config:
     """Load the configuration. A missing config file is not an error: defaults apply."""
     resolved = SETTINGS.resolve(path, environ)
-    # Each value already has its setting's type (a secret=True one is a Secret: cast it to
-    # Secret, never str()), so cast() only tells mypy which type that is.
-    v = resolved.values
+    # Each accessor gives its setting's type and raises TypeError for another kind: a secret=True
+    # setting is resolved.secret(key), never resolved.str(key). one_of() gives the declared
+    # spelling, so log_level is already one of LOG_LEVELS, the names logging wants.
     # Cross-setting rules go here; a rule on one value is its setting's check=.
     return Config(
-        # one_of() checks in any case and keeps the case given; logging wants upper case.
-        log_level=cast(str, v["log_level"]).upper(),
+        log_level=resolved.str("log_level"),
 [% if kind == 'service' %]
-        host=cast(str, v["listen.host"]),
-        port=cast(int, v["listen.port"]),
-        state_dir=Path(cast(str, v["state_dir"])),
+        host=resolved.str("listen.host"),
+        port=resolved.int("listen.port"),
+        state_dir=Path(resolved.str("state_dir")),
 [% endif %]
         sources=dict(resolved.sources),
     )

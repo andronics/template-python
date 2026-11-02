@@ -10,9 +10,9 @@ import pytest
 from conftest import MATRIX
 from test_python import DOD, run
 
-# Byte-identical to 0003 and to the first consumers (metalayerlab/mitm-proxy#10, sluice#52), so their
-# next template update merges cleanly.
-PIN = '    "interpose @ git+https://github.com/metalayerlab/interpose@v0.1.0",\n'
+# Byte-identical to 0003 and, but for the tag, to the first consumers (metalayerlab/mitm-proxy#10,
+# sluice#52), so their next template update is at most a one-line pin conflict.
+PIN = '    "interpose @ git+https://github.com/metalayerlab/interpose@v0.2.0",\n'
 METADATA = (
     "[tool.hatch.metadata]\n"
     "# interpose is pinned by its git URL, not PyPI (template-python decision 0003)\n"
@@ -38,9 +38,11 @@ def test_interpose_only_with_a_cli(project: Path, variant: str) -> None:
     config = (project / "src/demo/config.py").read_text()
     assert "from interpose.settings import" in config
     assert not any(f"def {name}(" in config for name in ("_coerce", "resolve", "read_file", "_lookup"))
+    # interpose v0.2.0's typed accessors narrow each value; nothing is cast or re-cased (0003).
+    assert "cast(" not in config and ".upper()" not in config
 
 
-# A project adds a secret and a level-style setting, as 0003 says it should hold and normalise them.
+# A project adds a secret and a level-style setting, read with the accessors as 0003 says.
 SECRET_IMPORT = "from interpose.secret import Secret\n"
 SETTINGS_ADDED = """\
         Setting("api.token", "", "Token for the upstream API.", secret=True),
@@ -53,8 +55,8 @@ SETTINGS_ADDED = """\
 """
 FIELDS_ADDED = "    api_token: Secret\n    upstream_log_level: str\n"
 VALUES_ADDED = """\
-        api_token=cast(Secret, v["api.token"]),
-        upstream_log_level=cast(str, v["upstream.log_level"]).upper(),
+        api_token=resolved.secret("api.token"),
+        upstream_log_level=resolved.str("upstream.log_level"),
 """
 TEST = '''\
 from collections.abc import Callable
@@ -65,7 +67,7 @@ from interpose.secret import Secret
 from typer.testing import CliRunner
 
 from demo.cli import app
-from demo.config import ConfigError, load_config
+from demo.config import SETTINGS, ConfigError, load_config
 
 
 def test_secret_from_its_file(tmp_path: Path) -> None:
@@ -94,7 +96,13 @@ def test_secret_is_masked_by_the_config_command(tmp_path: Path) -> None:
     assert "s3cret" not in result.output
 
 
-def test_level_setting_is_upper_cased(write_config: Callable[..., Path]) -> None:
+def test_str_of_a_secret_is_refused(tmp_path: Path) -> None:
+    resolved = SETTINGS.resolve(tmp_path / "missing.yaml", {})
+    with pytest.raises(TypeError, match=r"'api\\.token' is a secret setting, not str: use secret"):
+        resolved.str("api.token")
+
+
+def test_level_setting_is_the_declared_spelling(write_config: Callable[..., Path]) -> None:
     cfg = load_config(write_config("upstream:\\n  log_level: debug\\n"), environ={})
     assert (cfg.upstream_log_level, cfg.sources["upstream.log_level"]) == ("DEBUG", "file")
     cfg = load_config(write_config(""), environ={"DEMO_UPSTREAM_LOG_LEVEL": "Error"})
@@ -114,7 +122,7 @@ def _insert(text: str, before: str, added: str) -> str:
 
 @pytest.mark.parametrize("variant", ["cli", "service"], indirect=True)
 def test_a_secret_and_a_level_setting(project: Path, tmp_path: Path) -> None:
-    """The pattern 0003 tells projects to copy: hold a Secret, reveal() at use, upper-case a level.
+    """The pattern 0003 tells projects to copy: secret() and str(), a Secret revealed at use.
     ruff, strict mypy and the tests pass on it, and the wiki's table and `config` mask the secret."""
     copy = tmp_path / "demo"
     shutil.copytree(project, copy, symlinks=True, ignore=shutil.ignore_patterns(".venv"))

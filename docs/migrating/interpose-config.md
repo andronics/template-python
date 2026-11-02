@@ -55,15 +55,21 @@ Then:
   `check=one_of(*LOG_LEVELS)`, the port `check=port`. A project rule is a function that raises
   `ValueError` with the reason. Only a rule that spans settings stays in `load_config`.
 - `load_config(path=None, environ=None)` becomes `resolved = SETTINGS.resolve(path, environ)`, the
-  cross-setting rules, then `Config(...)` from `resolved.values` with `sources=dict(resolved.sources)`.
-  Narrow each value with `cast(str, ...)`, `cast(int, ...)` and so on, never `str(...)`.
-- `one_of` accepts any case and keeps the case it was given, so upper-case the log level (and any other
-  level-style setting) in `load_config`: `log_level=cast(str, v["log_level"]).upper()`. That stays until
-  interpose#8 makes `one_of` return the declared spelling.
+  cross-setting rules, then `Config(...)` with `sources=dict(resolved.sources)`. On interpose v0.2.0 or
+  later, read each value with the accessor of its kind: `resolved.str("key")`, `.int`, `.bool`, `.list`
+  (a `tuple[str, ...]`) and `.secret`. Each raises `TypeError` for a setting of another kind, so no
+  `cast()` is needed and strict mypy still checks the types. (On v0.1.x there are no accessors: narrow
+  `resolved.values[...]` with `cast(str, ...)` and so on, never `str(...)`, and switch when you move to
+  v0.2.0.)
+- `one_of` accepts any case and, from v0.2.0, returns the declared spelling: `LOG_LEVEL=info` resolves
+  to `"INFO"` when `LOG_LEVELS` declares `"INFO"`. So `log_level=resolved.str("log_level")`, with no
+  `.upper()`; declare the spelling the code wants (logging wants upper case). On v0.1.x it keeps the
+  given case: upper-case it in `load_config` until you move.
 - **A `secret=True` setting resolves to a `Secret`.** `str()`, `repr()` and an f-string give `********`,
-  so a `str(values["x"])` that worked before now sends `********`, silently. Hold it in `Config` as
-  `Secret` (`cast(Secret, ...)`) and call `.reveal()` where it's used: a header, a connection string, a
-  key file. Search for every use of each secret field.
+  so a `str(values["x"])` that worked before now sends `********`, silently. Read it with
+  `resolved.secret("key")` (`resolved.str("key")` on it raises `TypeError` at load), hold it in `Config`
+  as `Secret` and call `.reveal()` where it's used: a header, a connection string, a key file. Search for
+  every use of each secret field. A check on a secret setting can't return a replacement value.
 - Keep the module docstring's contract: it exports SETTINGS, CONFIG_ENV, Config (with `sources`),
   ConfigError and `load_config(path=None, environ=None)`. `cli.py` and `scripts/gen-wiki.py` (both
   template-owned) use only these.
@@ -83,8 +89,9 @@ breaking.
 - Messages that changed: invalid YAML is `cannot parse <path> at line L, column C: ...` (was `cannot read`);
   a coercion error ends `(from <source>)`; `one_of`'s is `expected one of A, B, got 'x'`.
 - `tests/unit/test_cli.py` builds a `Setting` to test masking: import it from `interpose.settings`.
-- A secret setting: test that `load_config` gives a `Secret`, that `str()` of it is `********`, and that
-  `.reveal()` gives the value from its `_FILE`.
+- A secret setting: test that `load_config` gives a `Secret`, that `str()` of it is `********`, that
+  `.reveal()` gives the value from its `_FILE`, and that `resolved.str("key")` on it raises `TypeError`.
+- A level-style setting: test that a value given in lower case resolves to the declared spelling.
 
 ## 5. Check nothing users see changed
 

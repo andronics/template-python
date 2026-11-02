@@ -5,7 +5,7 @@ is for what maintainers (and their AI assistants) should know at a glance.
 
 ## Open
 
-- The generated `config.py` narrows values with `cast()`: switch to interpose's typed accessors once [metalayerlab/interpose#13](https://github.com/metalayerlab/interpose/issues/13) is tagged, and drop `load_config`'s `log_level` `.upper()` once [interpose#8](https://github.com/metalayerlab/interpose/issues/8) is (decision 0003)
+Nothing open.
 
 ## Decided against (don't re-propose without reading this first)
 
