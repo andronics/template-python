@@ -60,11 +60,12 @@ def on_tmpfs(path: Path) -> bool:
 def pytest_configure(config: pytest.Config) -> None:
     """Locally, keep the renders off a tmpfs /tmp: they hold every variant's project, and a tmpfs
     is RAM (and often quota'd). Without --basetemp, the temp root (pytest's numbered basetemps,
-    Copier's clones, the projects' own temp files) becomes ~/.cache/template-python-pytest.
-    CI's runners keep their default."""
+    Copier's clones, the projects' own temp files) becomes ~/.cache/template-python-pytest-tmp.
+    It sets TMPDIR, not --basetemp: pytest's numbered dirs under it let two runs (worktrees) share
+    it without deleting each other's. CI's runners keep their default."""
     if config.option.basetemp or RUNNER_CI or not on_tmpfs(Path(tempfile.gettempdir())):
         return
-    root = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "template-python-pytest"
+    root = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "template-python-pytest-tmp"
     root.mkdir(parents=True, exist_ok=True)
     os.environ["TMPDIR"] = str(root)
     tempfile.tempdir = None  # gettempdir() re-reads TMPDIR
