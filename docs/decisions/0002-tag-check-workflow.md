@@ -2,7 +2,7 @@
 
 <!-- Add a line for this record to the index in docs/decisions/README.md (CI checks). -->
 
-Status: Proposed
+Status: Accepted (2026-11-02)
 Date: 2026-11-02
 Authors: Stephen Cox; drafted by Claude (Claude Code)
 
@@ -54,12 +54,14 @@ without a `copier update -d`.
 - and, for #16151's form, a `[tool.uv.sources]` entry `NAME = { git = "https://github.com/OWNER/REPO", tag = "TAG" }`.
 
 `TAG` must be `vMAJOR.MINOR.PATCH` (the `v` optional). A branch, a commit or a pre-release pin is listed in
-the summary as skipped, never bumped.
+the summary as skipped, never bumped. A PEP 508 `@REF` doesn't say whether it is a branch or a tag: a hex
+`REF` of 7 to 40 characters is taken as a commit, and any other non-`vX.Y.Z` one is reported as a branch.
 
 ### How it checks
 
 For each dependency, `GET /repos/OWNER/REPO/tags` (paginated) and pick the highest tag that is strict
-semver with no pre-release and is greater than the pin, keeping the pin's `v` style. Major bumps (and
+semver with no pre-release and is greater than the pin. The tag's own name is written, since that is
+what exists; the pin's `v` style only decides between two tags for the same version (`v1.2.0` and `1.2.0`). Major bumps (and
 `0.x` minor bumps, breaking below 1.0) are proposed like any other; the PR title says so.
 
 ### How it bumps: one PR per dependency
@@ -87,6 +89,9 @@ otherwise `github.token`.
 
 - **With `GITHUB_TOKEN`, the PR's CI doesn't run** (events it causes start no workflows), so `ci` never
   reports and the PR can't merge. The PR body says so, and that closing and reopening it runs CI.
+- **`GITHUB_TOKEN` can open the PR only if** the repository allows it (*Settings → Actions → Allow GitHub
+  Actions to create and approve pull requests*), as for `template-update.yml`; otherwise the PR request
+  fails and the job fails with it.
 - **A private dependency** needs the App, installed on that repository: `GITHUB_TOKEN` can read only the
   current one. Without access, the tags request fails, and the job fails naming the dependency, so the
   scheduled run's failure is seen rather than skipped quietly. `uv lock` uses the same token
@@ -121,10 +126,11 @@ doesn't use (Context), so this workflow stays.
   `interpose`, which a non-uv installer takes from PyPI: it trades a bot gap for a squatting hole.
   *Rejected.*
 - **Register a placeholder `interpose` on PyPI.** Closes the Dependabot path for everyone, but interpose's
-  0001 rejected owning a PyPI name. Left to Stephen (open question 4).
+  0001 rejected owning a PyPI name, and the `dependabot.yml` ignore already closes it. *Rejected*
+  (resolved question 4).
 - **Dispatch `ci` on the branch when the token is `GITHUB_TOKEN`** (`gh workflow run base-ci.yml --ref`,
   which `GITHUB_TOKEN` may do). It works, but this overlay would name base's workflow file and depend on
-  its `workflow_dispatch` trigger. *Rejected* for the close-and-reopen note (open question 2).
+  its `workflow_dispatch` trigger. *Rejected* for the close-and-reopen note (resolved question 2).
 - **One PR for all tag-pinned dependencies.** One bad bump blocks the rest; Dependabot's one PR per
   dependency is what reviewers already expect. *Rejected.*
 - **Inline Python in the workflow** (as `template-update.yml`'s `plan`). The parser and the semver choice
@@ -137,9 +143,12 @@ doesn't use (Context), so this workflow stays.
   so `copier update` reaches them): the workflow, the script, the Release-Process paragraph. With 0003, the
   `dependabot.yml` ignore. Nothing changes for a project without tag-pinned git dependencies but one weekly
   no-op run.
-- **Tests here:** a render runs `scripts/tag-check.py --dry-run` against fixture `pyproject.toml` files
-  (each form, extras and markers, a branch pin, a pre-release, none at all) with the tags read from a file
-  (`--tags-from`), and asserts the chosen bump and the rewritten line; actionlint covers the workflow.
+- **Tests here** (`tests/test_tag_check.py`): the template's `scripts/tag-check.py` (copied verbatim, so
+  it is tested as it is, without a render) parses a fixture `pyproject.toml` (each form, extras and markers,
+  a branch, commit and pre-release pin, none at all), picks tags and rewrites lines, and runs `--dry-run
+  --tags-from`. A full run goes against a fake GitHub API (a local HTTP server, paginated tags), a local
+  bare `origin` and a stub `uv`, and asserts the pushed branch, its commit and diff, and the PR requests
+  (open, edit, close, a 404). Each render runs the script as a no-op; actionlint covers the workflow.
 - **Release:** `feat:` in template-python, a minor release.
 - **`.agents/stack.md`:** unchanged. The workflow is a CI concern; the wiki's Release-Process page
   documents it.
@@ -147,16 +156,18 @@ doesn't use (Context), so this workflow stays.
   `template-update.yml` does; nothing new.
 - **Rollback:** delete the workflow in a template release; open PRs are closed by hand.
 
-## Open questions
+## Resolved questions
 
-1. **Ship it before 0003 is approved?** Recommend yes: sluice and mitm-proxy depend on interpose as soon as
-   their switches merge, before any template change, so they need it first.
-2. **With `GITHUB_TOKEN`, is "close and reopen" in the PR body enough?** Recommend yes: every metalayerlab
-   and andronics repository that matters has the release App, and the alternative couples this overlay to
-   base's `base-ci.yml`.
-3. **Pick the highest tag, or the highest in the same major?** Recommend the highest, with "breaking" in
-   the title for a major (or `0.x` minor) bump: interpose is below 1.0, where every minor can break, and
-   holding back would hide the release that matters.
-4. **Register a placeholder `interpose` on PyPI?** Recommend not now: the `dependabot.yml` ignore closes the
-   only path that would install PyPI's package, at no cost. Revisit if interpose gains consumers outside
-   these templates.
+Stephen accepted every recommended answer on 2026-11-02.
+
+1. **Ship it before 0003 is approved?** Yes: sluice and mitm-proxy depend on interpose as soon as their
+   switches merge, before any template change, so they need it first.
+2. **With `GITHUB_TOKEN`, is "close and reopen" in the PR body enough?** Yes, without dispatching CI or
+   requiring the App: every metalayerlab and andronics repository that matters has the release App, and
+   the alternative couples this overlay to base's `base-ci.yml`.
+3. **Pick the highest tag, or the highest in the same major?** The highest, with "breaking" in the title
+   for a major (or `0.x` minor) bump: interpose is below 1.0, where every minor can break, and holding back
+   would hide the release that matters.
+4. **Register a placeholder `interpose` on PyPI?** No: the `dependabot.yml` ignore closes the only path
+   that would install PyPI's package, at no cost. Revisit if interpose gains consumers outside these
+   templates.
