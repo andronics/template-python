@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.0](https://github.com/andronics/template-python/compare/v2.1.0...v2.2.0) (2026-11-02)
+
+
+### ✨ Features
+
+* generated config.py on interpose (0003) ([#18](https://github.com/andronics/template-python/issues/18)) ([b7a0ce4](https://github.com/andronics/template-python/commit/b7a0ce4090251e3cace3fc8124d89d97567ec2f6))
+
 ## [2.1.0](https://github.com/andronics/template-python/compare/v2.0.4...v2.1.0) (2026-11-02)
 
 
