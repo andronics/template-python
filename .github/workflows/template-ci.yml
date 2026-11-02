@@ -35,6 +35,17 @@ jobs:
         with:
           python-version: '3.13'
           enable-cache: true
+      # The rendered projects' manifest check needs these in CI (CI=true makes a missing tool an
+      # error): the same pinned versions as the stack's stack-ci.yml manifests job.
+      - name: Install hadolint and kubeconform
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL -o "$HOME/.local/bin/hadolint" \
+            https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-linux-x86_64
+          chmod +x "$HOME/.local/bin/hadolint"
+          curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz \
+            | tar -xz -C "$HOME/.local/bin" kubeconform
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: pytest
         working-directory: template-python
         env:
