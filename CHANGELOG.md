@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/andronics/template-python/compare/v2.0.4...v2.1.0) (2026-11-02)
+
+
+### ✨ Features
+
+* a scheduled tag-check workflow for git-tag-pinned dependencies (0002) ([#14](https://github.com/andronics/template-python/issues/14)) ([8f9c8c6](https://github.com/andronics/template-python/commit/8f9c8c62886390118008e70f4a9ab9918440c6eb))
+
 ## [2.0.4](https://github.com/andronics/template-python/compare/v2.0.3...v2.0.4) (2026-11-02)
 
 
