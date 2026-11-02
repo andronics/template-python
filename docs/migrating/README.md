@@ -19,3 +19,24 @@ Changes a template update can't make, because the files are the project's (`src/
 | Change | For | Prompt |
 |---|---|---|
 | `config.py` on interpose's settings engine (decision [0003](../decisions/0003-interpose-config.md)) | `service` and `cli` projects made before it | [interpose-config.md](interpose-config.md) |
+
+## Porting a service to FastAPI
+
+`kind: service` is FastAPI on uvicorn only (decision [0004](../decisions/0004-fastapi-only.md)). A Flask or
+Starlette service (trackie, qbt-rules, ferryman) is ported in its migration PR, after the templates are
+applied, so the skeleton's `api.py`, `cli.py serve`, `tests/unit/test_api.py` and wiki are the starting point:
+
+- **Routes** move into `create_app(config)` in `api.py`, each with a `summary` (the wiki's endpoint table is
+  generated from the OpenAPI schema). Request bodies and responses become Pydantic models; plain `def`
+  endpoints keep synchronous code (requests, sqlite) working in FastAPI's thread pool.
+- **Health:** `health_path` stays dependency-free; `/readyz` answers 503 while a dependency is down (the k8s
+  readiness probe reads it). Keep any old health path as an extra route until its callers move.
+- **Server:** `serve` runs uvicorn with the app object. Drop gunicorn, its config and any `gunicorn ... app:app`
+  command; the Dockerfile, systemd unit and contrib manifests already run `<project> serve`.
+- **Background threads** (pollers, workers, schedulers) start and stop in a FastAPI `lifespan`, not at import
+  or app creation, so tests can build the app without them.
+- **Errors** are `{"detail": "..."}` (`HTTPException`); keep the old shape only if a client depends on it,
+  and say so in a design record.
+- **Tests:** Flask's `test_client()` / pytest-flask become `fastapi.testclient.TestClient`. Keep each old
+  route's test, pointed at the new app, so the port shows nothing a client sees changed.
+
