@@ -90,7 +90,7 @@ of them.
 | 0005 Extra ports | `extra_ports`, unchanged; template-container's manifests publish them |
 | 0012 Image extras | `image_extras`, unchanged: the Dockerfile is this stack's |
 | 0017 Integration job | `integration_ci`, `integration_extras`, a job in `stack-ci.yml` |
-| 0020 Thin config on interpose | Still proposed: an open question below |
+| 0020 Thin config on interpose | Proposed again here as [0003](0003-interpose-config.md) |
 
 The layer's named values and fragments stay as include files in `includes/`. They aren't rendered, and
 they keep the rendered files reviewable line by line against project-template's. A converter checked that
