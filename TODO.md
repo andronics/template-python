@@ -5,7 +5,7 @@ is for what maintainers (and their AI assistants) should know at a glance.
 
 ## Open
 
-- A thin `config.py` on interpose's settings engine, replacing project-template's 0020: proposed in [docs/decisions/0003](docs/decisions/0003-interpose-config.md); approve after 0002 is implemented
+- The generated `config.py` narrows values with `cast()`: switch to interpose's typed accessors once [metalayerlab/interpose#13](https://github.com/metalayerlab/interpose/issues/13) is tagged, and drop `load_config`'s `log_level` `.upper()` once [interpose#8](https://github.com/metalayerlab/interpose/issues/8) is (decision 0003)
 
 ## Decided against (don't re-propose without reading this first)
 

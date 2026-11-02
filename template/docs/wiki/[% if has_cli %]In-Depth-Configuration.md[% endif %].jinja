@@ -13,6 +13,7 @@ Every setting can be given in four places, and the first one that has it wins:
 `<KEY>` is the setting's key in upper case, with the dots as underscores: `listen.port` is `[[ env_prefix ]]LISTEN_PORT`.
 A value of the wrong type, such as `0.5` or `true` for an integer or a list for a string, is an error that names the setting.
 `[[ project_name ]] config` prints the effective value of every setting and where it came from, with secrets masked.
+The engine is [interpose](https://github.com/metalayerlab/interpose)'s settings loader; `src/[[ package_name ]]/config.py` declares the settings.
 
 ## Settings
 
@@ -25,7 +26,7 @@ Generated from the code: don't edit the table, run `[[ layer.gen_wiki ]]`.
 
 ## Secrets
 
-Never put a secret in the config file or in a plain environment variable that `docker inspect` or `ps` would show. Use the `_FILE` variant and mount the value as a file:
+A secret setting is read from all four places, like any other, so nothing stops it being set in the config file or a plain environment variable. Don't: `docker inspect` and `ps` show the variable. Use the `_FILE` variant and mount the value as a file:
 
 - Docker: `[[ env_prefix ]]<KEY>_FILE=/run/secrets/<name>` with a secrets file or bind mount
 - Kubernetes: a Secret mounted as a volume (SOPS-encrypted in the GitOps repo)

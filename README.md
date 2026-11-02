@@ -16,7 +16,7 @@ base's answers. It needs template-base `v2.0.0` or later.
 
 | Path | What |
 |---|---|
-| `pyproject.toml`, `src/<package>/`, `tests/` | The package skeleton: config (`<PREFIX>_<KEY>_FILE` > env > file > default), CLI, HTTP API; unit and opt-in integration tests. `src/` and `tests/` are the project's once written |
+| `pyproject.toml`, `src/<package>/`, `tests/` | The package skeleton: config on [interpose](https://github.com/metalayerlab/interpose)'s settings engine (`<PREFIX>_<KEY>_FILE` > env > file > default; decision 0003), CLI, HTTP API; unit and opt-in integration tests. `src/` and `tests/` are the project's once written |
 | Slots | `.agents/stack.md`, `stack-ci.yml` (tests, integration, Markdown lint, manifests), `.gitignore`, `.pre-commit-config.yaml`, `.claude/settings.json`, `README.md`, `.github/dependabot.yml` |
 | `python-release.yml`, `release-please-config.json`, `CHANGELOG.md` | Releases from Conventional Commits |
 | `python-wiki.yml`, `docs/wiki/`, `scripts/gen-wiki.py`, `scripts/check-wiki.py` | The wiki, checked and mirrored to the GitHub wiki |
