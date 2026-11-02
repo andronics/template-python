@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.4](https://github.com/andronics/template-python/compare/v2.0.3...v2.0.4) (2026-11-02)
+
+
+### 📚 Documentation
+
+* record what the first interpose consumers showed (0003) ([#15](https://github.com/andronics/template-python/issues/15)) ([eb3a5bb](https://github.com/andronics/template-python/commit/eb3a5bbb1c9db6da3f7ee6065d51fe108500fabb))
+
 ## [2.0.3](https://github.com/andronics/template-python/compare/v2.0.2...v2.0.3) (2026-11-02)
 
 
