@@ -5,7 +5,7 @@ Paste everything below the line into a Claude Code session opened in `metalayerl
 ---
 
 Migrate this repository from `metalayerlab/project-template` (v0.1.18) to the stacked templates:
-template-base v2.0.0, then template-python v1.0.0. It's a library (no image).
+template-base v2.0.2, then template-python v2.0.0. It's a library (no image).
 Why: template-base's `docs/decisions/0001-stacked-templates.md`, template-python's
 `docs/decisions/0001-python-overlay.md`.
 
@@ -54,8 +54,8 @@ The answers above are this repository's current ones, split by owner (base's ide
 ## 2. Apply the new templates in place, then 3-way merge what this repository had changed
 
 ```sh
-uvx copier copy --trust --defaults --skip-tasks --overwrite --vcs-ref v2.0.0 --data-file "$S/base.yml" gh:andronics/template-base .
-uvx copier copy --trust --defaults --skip-tasks --overwrite --vcs-ref v1.0.0 --data-file "$S/python.yml" gh:andronics/template-python .
+uvx copier copy --trust --defaults --skip-tasks --overwrite --vcs-ref v2.0.2 --data-file "$S/base.yml" gh:andronics/template-base .
+uvx copier copy --trust --defaults --skip-tasks --overwrite --vcs-ref v2.0.0 --data-file "$S/python.yml" gh:andronics/template-python .
 ```
 
 Copier writes each template file over the project's, and leaves the `_skip_if_exists` ones alone (`src/`,
@@ -78,7 +78,8 @@ for rel in changed:
     if not old.is_file() or old.read_bytes() == ours:
         continue  # the project never changed this file: the new version stands
     new = Path(rel).read_bytes()
-    theirs = Path(sys.argv[1]) / "theirs"; theirs.write_bytes(new)
+    theirs = Path(sys.argv[1]) / "new" / rel  # the new version, kept for a conflict
+    theirs.parent.mkdir(parents=True, exist_ok=True); theirs.write_bytes(new)
     Path(rel).write_bytes(ours)
     if subprocess.run(["git", "merge-file", "-L", "ours", "-L", "old template", "-L", "new templates",
                        rel, str(old), str(theirs)]).returncode:
@@ -93,7 +94,7 @@ The last line removes the files the old template made and no new template makes.
 files: `ci.yml` became base-ci.yml + stack-ci.yml, `release-please.yml` became python-release.yml,
 `wiki.yml` became python-wiki.yml.
 
-**Expected:** None: interpose changed no template-owned file, so every template file is replaced as rendered.
+**Expected:** `README.md` and `pyproject.toml` (interpose's v0.1 settings and secrets, PR #2). Both merge cleanly, and interpose's edits are kept.
 Then check `git status`: nothing under `src/`, `tests/`, `docs/design/` or this repository's own files
 may change. If anything does, restore it with `git checkout -- <path>` and say so in the PR.
 
@@ -113,7 +114,6 @@ scripts/check-docs-secrets.sh && scripts/check-markdown.sh   # with Docker
 ```
 
 - `scripts/post-update.sh` changes nothing.
-- `uv run ruff format --check` already fails on `main`, before any migration: it would reformat a Python block in `docs/design/0001-initial-design.md` (line 62). It isn't caused by the migration. Fix it in its own PR (a project file), or say in this PR that it predates it.
 
 Commit as `chore: move to template-base, template-python` and open the PR. In the
 PR body, list the conflicts you resolved and anything from step 3.
