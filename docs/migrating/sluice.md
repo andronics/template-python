@@ -16,7 +16,8 @@ the PR from a branch and stop there for review. Copier writes the new `.copier-a
 
 ```sh
 git switch -c chore/stacked-templates
-S=$(mktemp -d)
+mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}"   # scratch goes here, not in /tmp (a small tmpfs)
+S=$(mktemp -d "${XDG_CACHE_HOME:-$HOME/.cache}/migrate.XXXXXX")
 cat > "$S/old.yml" <<'EOF'
 code_owners: '@metalayerlab/maintainers'
 container_image: true
@@ -136,6 +137,7 @@ scripts/check-docs-secrets.sh && scripts/check-markdown.sh   # with Docker
 
 Commit as `chore: move to template-base, template-python and template-container` and open the PR. In the
 PR body, list the conflicts you resolved and anything from step 3.
+Then remove the scratch directory, which nothing cleans up for you: `rm -rf "$S"`.
 
 ## 5. Branch protection (Stephen's step, not the agent's)
 
