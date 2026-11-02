@@ -55,9 +55,6 @@ packages = ["src/[[ package_name ]]"]
 [tool.ruff]
 line-length = 100
 target-version = "py[[ python_version | replace('.', '') ]]"
-# Workaround: base's script is wrapped at 120, so ruff check and ruff format both fail on it
-# (https://github.com/andronics/template-base/issues/6). Drop this when that lands.
-extend-exclude = ["scripts/base-contract.py"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "S", "T20"]

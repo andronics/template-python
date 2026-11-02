@@ -5,7 +5,7 @@ Paste everything below the line into a Claude Code session opened in `metalayerl
 ---
 
 Migrate this repository from `metalayerlab/project-template` (v0.1.18) to the stacked templates:
-template-base v1.0.0, then template-python v1.0.0. It's a library (no image).
+template-base v2.0.0, then template-python v1.0.0. It's a library (no image).
 Why: template-base's `docs/decisions/0001-stacked-templates.md`, template-python's
 `docs/decisions/0001-python-overlay.md`.
 
@@ -54,7 +54,7 @@ The answers above are this repository's current ones, split by owner (base's ide
 ## 2. Apply the new templates in place, then 3-way merge what this repository had changed
 
 ```sh
-uvx copier copy --trust --defaults --skip-tasks --overwrite --vcs-ref v1.0.0 --data-file "$S/base.yml" gh:andronics/template-base .
+uvx copier copy --trust --defaults --skip-tasks --overwrite --vcs-ref v2.0.0 --data-file "$S/base.yml" gh:andronics/template-base .
 uvx copier copy --trust --defaults --skip-tasks --overwrite --vcs-ref v1.0.0 --data-file "$S/python.yml" gh:andronics/template-python .
 ```
 

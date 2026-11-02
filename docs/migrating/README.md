@@ -10,4 +10,4 @@ with the stacked templates' answers files in one reviewed PR, after a 3-way merg
 | metalayerlab/sluice | project-template v0.1.15, cli + image | [sluice.md](sluice.md) |
 | metalayerlab/mitm-proxy | project-template v0.1.17, service + image | [mitm-proxy.md](mitm-proxy.md) |
 
-They need template-base, template-python and template-container published at `v1.0.0`.
+They need template-base `v2.0.0`, and template-python and template-container published at `v1.0.0`.
