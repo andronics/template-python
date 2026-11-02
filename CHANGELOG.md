@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.1](https://github.com/andronics/template-python/compare/v2.3.0...v2.3.1) (2026-11-02)
+
+
+### 📚 Documentation
+
+* record FastAPI as the only web framework for services (0004) ([#23](https://github.com/andronics/template-python/issues/23)) ([47e893a](https://github.com/andronics/template-python/commit/47e893a82d1a4f61a04c9914a384da7ee63ff940))
+
 ## [2.3.0](https://github.com/andronics/template-python/compare/v2.2.0...v2.3.0) (2026-11-02)
 
 
