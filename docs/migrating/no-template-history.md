@@ -108,8 +108,9 @@ show it changed nothing:
    the models in a test with `strict=True` and `extra="forbid"`.
 3. **Run the same script against the new app** and `cmp` the bytes. Commit a small golden test of the
    serialiser, and a contract test of the fields and JSON types each client reads.
-4. **Background threads** start in the lifespan. An app built with an injected object (tests) never starts
-   it; `/readyz` answers 503 when the thread isn't alive.
+4. **Background threads** start in the lifespan: register them with `threads.add(...)` in `create_app`
+   (decision [0006](../decisions/0006-lifespan-threads.md)). An app built with an injected object (tests)
+   never starts them; `/readyz` answers 503 naming a thread that isn't alive.
 5. **Run the deployed image (its pinned digest) and the new one side by side**, as the deployment does:
    same uid, same volume layout and variables, with the upstream URLs pointing at a closed local port so
    nothing real is contacted. Compare the endpoints, ignoring that run's timestamps.
