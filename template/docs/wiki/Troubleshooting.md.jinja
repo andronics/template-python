@@ -3,7 +3,7 @@
 ## Diagnostics
 
 [% if has_cli %]
-- **Effective configuration:** `[[ project_name ]] config` prints every setting and where it came from (default, file, env var). Secrets are masked.
+- **Effective configuration:** `[[ project_name ]] config` prints every setting and where it came from (default, file, env var). A secret shows only whether it is set (`******** (set)` or `(unset)`), never its value.
 - **More logging:** `[[ env_prefix ]]LOG_LEVEL=DEBUG`.
 [% endif %]
 [% if kind == 'service' %]

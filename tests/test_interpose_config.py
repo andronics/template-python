@@ -92,7 +92,7 @@ def test_secret_is_masked_by_the_config_command(tmp_path: Path) -> None:
         app, ["config", "-c", str(tmp_path / "missing.yaml")], env={"DEMO_API_TOKEN_FILE": str(token)}
     )
     assert result.exit_code == 0, result.output
-    assert "api.token = ********  (DEMO_API_TOKEN_FILE)" in result.stdout
+    assert "api.token = ******** (set)  (DEMO_API_TOKEN_FILE)" in result.stdout
     assert "s3cret" not in result.output
 
 
