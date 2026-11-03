@@ -1,7 +1,22 @@
 [% import 'includes/layer.jinja' as layer with context %]
 # Deployment
 
+[% if contrib %]
 Manifests live in [`contrib/`]([[ repo_url ]]/tree/main/contrib), versioned with the code. release-please moves their image tag to each new release. Every option keeps the same hardening: a non-root user, read-only root, no capabilities.
+[% else %]
+How to run [[ project_name ]] in production, and how to scale it.
+[% endif %]
+[% if kind == 'service' %]
+
+## Process model
+
+`[[ project_name ]] serve` runs **one uvicorn process** with one event loop: no `--workers`, no Gunicorn. FastAPI runs plain `def` endpoints in a thread pool, so one process serves concurrent requests; background threads (pollers, workers, schedulers) run beside it, started by the app's lifespan.
+
+- **Scale by replicas, not workers.** More throughput means more pods (or more instances behind the proxy), each one process. Every process exports its own `/metrics`, so the scraper sees one target per pod and nothing needs a shared or multiprocess registry.
+- **A scheduler runs once per process.** A job scheduled in the lifespan runs on every replica. Keep one instance (`replicas: 1`[% if 'k8s' in contrib %], the manifest's default, with `strategy: Recreate` so an update never runs two at once[% endif %]) while the service has one, or move the scheduler to its own singleton Deployment (`replicas: 1`, the same image with a scheduler subcommand as `args`) and scale the API on its own.
+- **Leader election** (a Kubernetes Lease, a database lock) is the app's to add if it ever needs several schedulers with one active; the template ships none.
+- **No worker setting.** A port from Gunicorn drops `workers`; if its configuration still carries one, refuse anything above 1 with a configuration error that says to scale by replicas.
+[% endif %]
 [% if 'docker' in contrib %]
 
 ## Docker Compose
@@ -63,7 +78,8 @@ The unit runs as the `[[ project_name ]]` system user in a tight sandbox (`syste
 
 ## Upgrading
 
-Read the [CHANGELOG]([[ repo_url ]]/blob/main/CHANGELOG.md) entries between your version and the new one; breaking changes are marked ⚠. Then:
+Read the [CHANGELOG]([[ repo_url ]]/blob/main/CHANGELOG.md) entries between your version and the new one; breaking changes are marked ⚠.[% if contrib %] Then:
+[% endif %]
 
 [% if 'docker' in contrib %]
 - Compose: change the image tag, then `docker compose up -d`.

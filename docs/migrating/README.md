@@ -35,7 +35,10 @@ applied, so the skeleton's `api.py`, `cli.py serve`, `tests/unit/test_api.py` an
 - **Health:** `health_path` stays dependency-free; `/readyz` answers 503 while a dependency is down (the k8s
   readiness probe reads it). Keep any old health path as an extra route until its callers move.
 - **Server:** `serve` runs uvicorn with the app object. Drop gunicorn, its config and any `gunicorn ... app:app`
-  command; the Dockerfile, systemd unit and contrib manifests already run `<project> serve`.
+  command; the Dockerfile, systemd unit and contrib manifests already run `<project> serve`. One process per
+  pod: scale by replicas, never `--workers` (decision [0008](../decisions/0008-process-model.md), the wiki's
+  Deployment page). A `workers` setting the old config had goes; if it must stay readable for a release, a
+  value above 1 is a `ConfigError` that says to scale by replicas.
 - **Background threads** (pollers, workers, schedulers) start and stop in the skeleton's FastAPI `lifespan`,
   not at import or app creation: register each in `create_app` with `threads.add("worker", run)`, where
   `run(stop)` loops until the `threading.Event` it gets is set (`BackgroundThreads` in `api.py`, decision
