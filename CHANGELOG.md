@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.4.3](https://github.com/andronics/template-python/compare/v2.4.2...v2.4.3) (2026-11-03)
+
+
+### 🐛 Bug Fixes
+
+* show whether a secret is set in the config command, and test CLI errors without colours ([#47](https://github.com/andronics/template-python/issues/47)) ([9651718](https://github.com/andronics/template-python/commit/9651718130b49845e11ee9b23bca02a2f432596b))
+
+
+### 📚 Documentation
+
+* migration notes from the qbt-rules dashboard and CLI ports ([#46](https://github.com/andronics/template-python/issues/46)) ([9e3749d](https://github.com/andronics/template-python/commit/9e3749d3dfc8948dbdd8823ff181a8c9cfc69a91))
+* Typer's Annotated positional trap, and the metavar that renames a flag ([#49](https://github.com/andronics/template-python/issues/49)) ([9692e8e](https://github.com/andronics/template-python/commit/9692e8e00835f521be536de1a132eab346753eec))
+
 ## [2.4.2](https://github.com/andronics/template-python/compare/v2.4.1...v2.4.2) (2026-11-03)
 
 
