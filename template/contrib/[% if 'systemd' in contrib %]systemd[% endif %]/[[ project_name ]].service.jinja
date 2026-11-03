@@ -29,6 +29,8 @@ Environment=TZ=[[ timezone ]]
 # /var/lib/[[ project_name ]], the config's default state_dir
 StateDirectory=[[ project_name ]]
 StateDirectoryMode=0700
+# Relative paths resolve there, as in the image (template-python decision 0009)
+WorkingDirectory=/var/lib/[[ project_name ]]
 ConfigurationDirectory=[[ project_name ]]
 UMask=0077
 
