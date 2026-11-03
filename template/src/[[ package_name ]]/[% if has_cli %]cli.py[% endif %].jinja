@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from interpose.secret import MASK
 
 from [[ package_name ]] import __description__, __version__
 from [[ package_name ]].config import CONFIG_ENV, SETTINGS, Config, ConfigError, load_config
@@ -49,7 +50,7 @@ def version() -> None:
 
 @app.command("config")
 def show_config(config: ConfigOption = None) -> None:
-    """Print the effective configuration and where each value came from. Secrets are masked."""
+    """Print the effective configuration and where each value came from. Secrets: set or unset."""
     cfg = _load(config)
     values = {
         "log_level": cfg.log_level,
@@ -59,8 +60,13 @@ def show_config(config: ConfigOption = None) -> None:
         "state_dir": cfg.state_dir,
 [% endif %]
     }
+    # A secret shows whether it is set, never its value: a Secret is truthy when it isn't
+    # empty. Read from the resolved settings, so a secret Config holds needs no entry above.
+    resolved = SETTINGS.resolve(config).values
     for setting in SETTINGS:
-        shown = "********" if setting.secret else values.get(setting.key)
+        shown: object = values.get(setting.key)
+        if setting.secret:
+            shown = f"{MASK} (set)" if resolved[setting.key] else "(unset)"
         typer.echo(f"{setting.key} = {shown}  ({cfg.sources[setting.key]})")
 [% if kind == 'service' %]
 
