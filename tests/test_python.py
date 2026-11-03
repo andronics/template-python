@@ -238,6 +238,33 @@ def test_stack_ci_holds_no_required_list(project: Path) -> None:
     assert "concurrency" not in ci
 
 
+# Each of ruff's default `include` globs as the pre-commit (identify) tag that selects those files.
+# None: a settings file, which neither hook needs to be handed.
+RUFF_GLOB_TAG = {"*.py": "python", "*.pyi": "pyi", "*.ipynb": "jupyter", "*.md": "markdown",
+                 "**/pyproject.toml": None, "**/ruff.toml": None, "**/.ruff.toml": None}  # fmt: skip
+
+
+def test_ruff_hooks_cover_what_ci_checks(project: Path) -> None:
+    """CI runs ruff over the whole repository, so ruff's `include` picks the files; each pre-commit
+    hook must be handed the same types, or a commit passes its hooks and fails CI (a Python sketch
+    in a design record's Markdown: ruff formats code blocks in *.md, it doesn't lint them)."""
+    steps = yaml.safe_load((project / ".github/workflows/stack-ci.yml").read_text())["jobs"]["test"]["steps"]
+    assert {"uv run ruff check", "uv run ruff format --check"} <= {s.get("run") for s in steps}
+    settings = run(project, "uv", "run", "ruff", "check", "--show-settings")  # format shares it
+    assert settings.returncode == 0, settings.stderr
+    block = re.search(r"^file_resolver\.include = \[(.*?)\]", settings.stdout, re.M | re.S)
+    assert block, settings.stdout
+    globs = re.findall(r'"([^"]+)"', block[1])
+    unknown = set(globs) - set(RUFF_GLOB_TAG)
+    assert not unknown, f"ruff now includes {unknown}: map them in RUFF_GLOB_TAG and widen the hooks"
+    tags = {RUFF_GLOB_TAG[g] for g in globs} - {None}
+    hooks = {h["id"]: h for r in yaml.safe_load((project / ".pre-commit-config.yaml").read_text())["repos"]
+             for h in r["hooks"]}  # fmt: skip
+    for hook, needs in (("ruff-format", tags), ("ruff-check", tags - {"markdown"})):
+        assert "--force-exclude" in hooks[hook]["entry"].split(), hook
+        assert needs <= set(hooks[hook]["types_or"]), f"{hook} misses {needs - set(hooks[hook]['types_or'])}"
+
+
 def test_release_never_names_the_container_overlay(project: Path) -> None:
     """The stack's release workflow is `Release`, which template-container follows; it never calls it."""
     release = (project / ".github/workflows/python-release.yml").read_text()
