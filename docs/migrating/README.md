@@ -36,8 +36,12 @@ applied, so the skeleton's `api.py`, `cli.py serve`, `tests/unit/test_api.py` an
   readiness probe reads it). Keep any old health path as an extra route until its callers move.
 - **Server:** `serve` runs uvicorn with the app object. Drop gunicorn, its config and any `gunicorn ... app:app`
   command; the Dockerfile, systemd unit and contrib manifests already run `<project> serve`.
-- **Background threads** (pollers, workers, schedulers) start and stop in a FastAPI `lifespan`, not at import
-  or app creation, so tests can build the app without them.
+- **Background threads** (pollers, workers, schedulers) start and stop in the skeleton's FastAPI `lifespan`,
+  not at import or app creation: register each in `create_app` with `threads.add("worker", run)`, where
+  `run(stop)` loops until the `threading.Event` it gets is set (`BackgroundThreads` in `api.py`, decision
+  [0006](../decisions/0006-lifespan-threads.md)). The lifespan starts them, and on shutdown sets `stop` and
+  joins each with a timeout; `/readyz` answers 503 naming any that died. Tests that build the app without
+  `with TestClient(app)` never start them.
 - **Errors** are `{"detail": "..."}` (`HTTPException`); keep the old shape only if a client depends on it,
   and say so in a design record.
 - **Tests:** Flask's `test_client()` / pytest-flask become `fastapi.testclient.TestClient`. Keep each old

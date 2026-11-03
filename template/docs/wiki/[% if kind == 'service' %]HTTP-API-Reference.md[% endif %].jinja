@@ -10,7 +10,7 @@ Generated from the code: don't edit the table, run `[[ layer.gen_wiki ]]`.
 <!-- generated:start http-api -->
 <!-- generated:end http-api -->
 
-`[[ health_path ]]` (liveness) answers as long as the process runs. `/readyz` (readiness) answers 503 while the service can't serve, for example while a dependency is down. Orchestrators should restart on the first and route traffic on the second.
+`[[ health_path ]]` (liveness) answers as long as the process runs. `/readyz` (readiness) answers 503 while the service can't serve: a background thread has died (the response names it), or a dependency is down. Orchestrators should restart on the first and route traffic on the second.
 
 <!-- guidance: for every non-health endpoint, add a subsection with the request (parameters, body), the response (with an example) and the errors it can return. -->
 
