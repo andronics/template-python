@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from interpose.metrics import Counter
 
 from [[ package_name ]] import __version__
 from [[ package_name ]].api import create_app
@@ -71,3 +72,13 @@ def test_thread_names_are_unique(app: FastAPI) -> None:
     app.state.threads.add("worker", lambda stop: None)
     with pytest.raises(ValueError, match="registered twice"):
         app.state.threads.add("worker", lambda stop: None)
+
+
+def test_metrics(app: FastAPI, client: TestClient) -> None:
+    app.state.metrics.register(Counter("[[ package_name ]]_jobs_total", "Jobs run")).inc()
+    response = client.get("/metrics")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/plain; version=0.0.4; charset=utf-8"
+    lines = response.text.splitlines()
+    assert f'[[ package_name ]]_build_info{{version="{__version__}"}} 1' in lines
+    assert "[[ package_name ]]_jobs_total 1" in lines

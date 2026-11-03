@@ -12,7 +12,9 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Protocol
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
+from fastapi.responses import PlainTextResponse
+from interpose.metrics import CONTENT_TYPE, Gauge, Label, Registry
 
 from [[ package_name ]] import __description__, __version__
 from [[ package_name ]].config import Config
@@ -66,6 +68,18 @@ class BackgroundThreads:
 
 
 def create_app(config: Config) -> FastAPI:
+    # Prometheus metrics, served at /metrics. Register the app's own on this registry
+    # (metrics.register(Counter(...))), here or in the code create_app wires up.
+    # interpose's metrics aren't locked: change them on the event loop, or from one
+    # thread per series, and create every label set at startup.
+    metrics = Registry()
+    metrics.register(
+        Gauge(
+            "[[ package_name ]]_build_info",
+            "The running version: always 1",
+            [Label("version", [__version__])],
+        )
+    ).set(1, __version__)
     threads = BackgroundThreads()
     # Register background threads here, never at import, so the app can be built
     # without them: threads.add("worker", worker.run)
@@ -86,6 +100,7 @@ def create_app(config: Config) -> FastAPI:
     )
     app.state.config = config
     app.state.threads = threads
+    app.state.metrics = metrics
 
     @app.get("[[ health_path ]]", summary="Liveness: the process is up", tags=["health"])
     def healthz() -> dict[str, str]:
@@ -107,5 +122,15 @@ def create_app(config: Config) -> FastAPI:
     @app.get("/version", summary="The running version", tags=["meta"])
     def get_version() -> dict[str, str]:
         return {"version": __version__}
+
+    @app.get(
+        "/metrics",
+        summary="Prometheus metrics (text exposition)",
+        tags=["meta"],
+        response_class=PlainTextResponse,
+    )
+    async def get_metrics() -> Response:
+        # async: rendered on the event loop, as interpose's metrics expect.
+        return Response(metrics.render(), media_type=CONTENT_TYPE)
 
     return app

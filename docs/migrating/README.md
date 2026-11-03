@@ -42,6 +42,10 @@ applied, so the skeleton's `api.py`, `cli.py serve`, `tests/unit/test_api.py` an
   [0006](../decisions/0006-lifespan-threads.md)). The lifespan starts them, and on shutdown sets `stop` and
   joins each with a timeout; `/readyz` answers 503 naming any that died. Tests that build the app without
   `with TestClient(app)` never start them.
+- **Metrics:** the skeleton serves `/metrics` from an interpose `Registry` (`app.state.metrics`, decision
+  [0007](../decisions/0007-metrics-endpoint.md)). Re-declare prometheus_client metrics as interpose
+  `Counter`, `Gauge` and `Histogram` on it, keeping their names, and drop prometheus_client's multiprocess
+  mode (one process per pod). Label values are declared up front (`Label("status", [...])`).
 - **Errors** are `{"detail": "..."}` (`HTTPException`); keep the old shape only if a client depends on it,
   and say so in a design record.
 - **Tests:** Flask's `test_client()` / pytest-flask become `fastapi.testclient.TestClient`. Keep each old
