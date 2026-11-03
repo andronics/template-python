@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.4.2](https://github.com/andronics/template-python/compare/v2.4.1...v2.4.2) (2026-11-03)
+
+
+### 🐛 Bug Fixes
+
+* warn when a background thread misses its join timeout ([#43](https://github.com/andronics/template-python/issues/43)) ([0f02a61](https://github.com/andronics/template-python/commit/0f02a61daa78063d1e6d2c05deec50fb8875102e))
+
+
+### 📚 Documentation
+
+* notes from the qbt-rules API port ([#44](https://github.com/andronics/template-python/issues/44)) ([822f010](https://github.com/andronics/template-python/commit/822f010078f01a9bd38734e7de534791d59dede8))
+
 ## [2.4.1](https://github.com/andronics/template-python/compare/v2.4.0...v2.4.1) (2026-11-03)
 
 
