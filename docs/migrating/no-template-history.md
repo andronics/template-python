@@ -39,7 +39,10 @@ uvx copier copy --trust --defaults --skip-tasks --overwrite --vcs-ref <container
 Answers that keep a deployment working: `owner_is_org: false` for a personal account; `health_path` = the
 path the project already serves; `contrib` only for manifests that live in this repository (not
 `k8s` when a homelab repository holds them); `multi_arch` matching the platforms the old workflow built;
-`personal_data_guard: true` if the project had its own guard.
+`personal_data_guard: true` if the project had its own guard. `python_version` is the **minimum**, not
+the only version: it becomes `requires-python = ">=…"`, ruff's target and the image's base, and
+`stack-ci.yml` tests it and every newer version the template supports (`3.13` tests 3.13 and 3.14). Choose
+the oldest version the project must run on.
 
 ## 3. Merge file by file (2-way)
 
@@ -123,13 +126,61 @@ the template's required headings (`docs/wiki/.standard.toml`), keep extra pages 
 take the template's `Release-Process.md`, and fill the generated blocks with `uv run scripts/gen-wiki.py`.
 No `<!-- guidance -->` may remain: Release PRs run `check-wiki.py --strict`.
 
-## 7. Check, open the PR, merge
+**Page names.** GitHub's web editor saves a hyphen typed in a page title as U+2010 (`‐`), so an imported
+page can be `In‐Depth-Configuration.md` where the standard requires `In-Depth-Configuration.md`: two pages
+with the same displayed title. The standard has no alias or redirect. `check-wiki.py` finds a required page
+by its exact name, and a GitHub wiki can't redirect. So:
+
+1. `git mv` the page to the standard's ASCII name and fix the links in `docs/wiki/` (the checker reports
+   each link to a missing page).
+2. Look for outside links to the old name: the README, docs, issues, other repositories
+   (`gh search code '<old name>'`). `python-wiki.yml` deletes every page that isn't in `docs/wiki/`, so
+   after the first merge the old URL is a "create this page" prompt.
+3. If any exist, keep the old name as a one-line stub, `Moved to [In-Depth Configuration](In-Depth-Configuration).`
+   The checker allows extra pages but wants every page linked from `_Sidebar.md`, so link the stub from
+   the sidebar too, at the end (`Moved: [In‐Depth-Configuration](In‐Depth-Configuration)`). Remove both
+   once nothing links to it.
+
+## 7. A staged migration: the old code keeps running
+
+A large port can land in several PRs: the templates first, with the old server and CLI still running, then
+config, the API and the CLI one at a time (andronics/qbt-rules#36 kept Flask serving). Until each step lands,
+some template files describe code that isn't running yet:
+
+- **Generated wiki sections.** `gen-wiki.py` fills the `settings`, `cli` and `http-api` blocks from the
+  skeleton's `config.py`, `cli.py` and `api.py`, which aren't what runs. Delete a block's
+  `<!-- generated:start/end -->` markers (keep the old hand-written table) until the step that ports that
+  code, and put them back in that step's PR. `gen-wiki.py` only touches text between markers, and
+  `check-wiki.py` doesn't require them. Write the plan in `TODO.md`.
+- **`docs/openapi.json`** is always written from the skeleton's `create_app` and can't be switched off. Say
+  in the PR and `TODO.md` that it describes the skeleton until the API port, whose PR will change it (the
+  `api-breaking` job then compares against the skeleton's schema; declare a breaking change with `feat!:`).
+- **The working directory.** The image's runtime stage sets no `WORKDIR` up to template-python v2.4.0, so
+  the process runs in `/`: legacy code that resolves `./config` silently reads an old `/config` mount if
+  one is still attached. Make legacy paths absolute (or derive them from `state_dir`), and remove the old
+  volume from the deployment rather than relying on it being absent. (andronics/template-python#40 sets
+  `WORKDIR /var/lib/<project>`, decision 0009.)
+- **`contrib/docker/compose.yml`** (template-container's) pins `image: <image>:0.0.0`. The
+  `# x-release-please-version` comment makes the first release PR write the real version, so leave the line
+  alone. Until then, build the tag locally (`docker build -t <image>:0.0.0 .`) or override `image:` in an
+  untracked `compose.override.yml`.
+- **Its comment suggests `docker exec <project> <project> config`.** The `config` command arrives with the
+  Typer CLI. Leave the comment, which is template-owned and right once the CLI port lands.
+- **`CMD ["serve"]`** (and the k8s `args: ["serve"]`): the legacy entry point must accept `serve` from the
+  first PR. qbt-rules added it as a synonym of `--serve`.
+- **The HEALTHCHECK** polls `http://127.0.0.1:${<PREFIX>LISTEN_PORT:-<port>}<health_path>`, and the image
+  sets `<PREFIX>LISTEN_HOST=0.0.0.0`. Legacy code reads neither: answer `port` with the port the old server
+  listens on by default and `health_path` with a path it serves, make it bind every interface itself, and
+  have a deployment that changes the port set `<PREFIX>LISTEN_PORT` to the same value as the legacy
+  variable. Each mismatch disappears when config moves onto interpose.
+
+## 8. Check, open the PR, merge
 
 Everything in `.agents/stack.md`'s Definition of done, plus `check-wiki.py --strict`, the image build, and
 a container run that answers the health path and each client's endpoint. Title: `feat!:` if a config
 file, a variable or a minimum Python version changed, with a `BREAKING CHANGE:` footer in the squash body.
 
-## 8. After the merge
+## 9. After the merge
 
 - `Release` runs release-please from the seeded version over the whole history (with no tags, every
   earlier commit lands in the first changelog; that's right, since none was released). It needs the
