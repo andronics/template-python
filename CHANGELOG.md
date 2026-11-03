@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.4.1](https://github.com/andronics/template-python/compare/v2.4.0...v2.4.1) (2026-11-03)
+
+
+### 🐛 Bug Fixes
+
+* run services in their state directory, not / ([#40](https://github.com/andronics/template-python/issues/40)) ([4cc1029](https://github.com/andronics/template-python/commit/4cc10293096a9f2564713596409e4a3fc59f6cc1))
+
+
+### 📚 Documentation
+
+* guidance for staged migrations, from qbt-rules ([#41](https://github.com/andronics/template-python/issues/41)) ([e2ea5e6](https://github.com/andronics/template-python/commit/e2ea5e6403589b8f6d1d418c26e0611f1025b968))
+
 ## [2.4.0](https://github.com/andronics/template-python/compare/v2.3.4...v2.4.0) (2026-11-03)
 
 
