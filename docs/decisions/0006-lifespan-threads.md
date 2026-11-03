@@ -47,7 +47,7 @@ With no thread registered, the skeleton behaves as before.
 
 - New services get the pattern; existing ones (their `src/` is their own) copy it from a fresh render.
 - Shutdown blocks for at most `join_timeout` per thread; a target must check `stop` at least that often.
-  Daemon threads that miss it don't hold up the exit.
+  Daemon threads that miss it don't hold up the exit, and `shutdown()` logs a warning naming each.
 - A lifespan scheduler runs once per process: with more than one replica it runs more than once (see the
   process-model record).
 - Worker and scheduler subcommands, and extra Deployments, stay in the app.

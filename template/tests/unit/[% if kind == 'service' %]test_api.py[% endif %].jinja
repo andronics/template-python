@@ -1,3 +1,4 @@
+import logging
 import threading
 import time
 from pathlib import Path
@@ -50,6 +51,25 @@ def test_lifespan_starts_and_stops_threads(app: FastAPI) -> None:
         assert started.wait(5)
         assert client.get("/readyz").status_code == 200
     assert stopped.is_set()
+
+
+def test_shutdown_warns_about_a_thread_that_misses_its_join(
+    app: FastAPI, caplog: pytest.LogCaptureFixture
+) -> None:
+    release = threading.Event()
+
+    def stuck(stop: threading.Event) -> None:
+        release.wait(5)  # ignores stop, as a thread blocked in I/O would
+
+    threads = app.state.threads
+    threads.join_timeout = 0.01
+    threads.add("stuck", stuck)
+    try:
+        with caplog.at_level(logging.WARNING, logger="[[ package_name ]].api"), TestClient(app):
+            pass
+    finally:
+        release.set()
+    assert "background thread stuck did not stop within 0.01s" in caplog.messages
 
 
 def test_ready_fails_when_a_thread_dies(app: FastAPI) -> None:
