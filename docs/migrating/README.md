@@ -52,6 +52,42 @@ applied, so the skeleton's `api.py`, `cli.py serve`, `tests/unit/test_api.py` an
   mode (one process per pod). Label values are declared up front (`Label("status", [...])`).
 - **Errors** are `{"detail": "..."}` (`HTTPException`); keep the old shape only if a client depends on it,
   and say so in a design record.
+  - **Your own 500 body needs a middleware.** A handler registered for `Exception` (or 500) runs in
+    Starlette's `ServerErrorMiddleware`, which sends its response and then re-raises: the server logs an
+    unhandled error, `TestClient` raises it, and the app's other middleware sees the exception, not a 500.
+    Catch it in a small ASGI middleware instead, added first so it is the innermost:
+
+    ```python
+    class CatchAll:
+        def __init__(self, app: ASGIApp) -> None:
+            self.app = app
+
+        async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+            if scope["type"] != "http":
+                return await self.app(scope, receive, send)
+            started = False
+
+            async def send_wrapper(message: Message) -> None:
+                nonlocal started
+                started = started or message["type"] == "http.response.start"
+                await send(message)
+
+            try:
+                await self.app(scope, receive, send_wrapper)
+            except Exception:
+                logger.exception("unhandled error: %s %s", scope["method"], scope["path"])
+                if started:
+                    raise  # half sent: let the server close the connection
+                await JSONResponse({"error": "Internal Server Error"}, 500)(scope, receive, send)
+
+
+    app.add_middleware(CatchAll)
+    ```
+  - **Status phrases changed in Python 3.13.** `HTTPStatus` now uses RFC 9110's: 413 is "Content Too
+    Large" (was "Request Entity Too Large"), 422 "Unprocessable Content" (was "Unprocessable Entity"), 414
+    "URI Too Long", 416 "Range Not Satisfiable". Starlette's default `HTTPException` detail comes from
+    `HTTPStatus`, so an error body that names the status changes with the Python version. An app keeping
+    the old bodies needs an explicit table of the phrases it wrote (status → phrase), not `HTTPStatus(...).phrase`.
 - **Tests:** Flask's `test_client()` / pytest-flask become `fastapi.testclient.TestClient`. Keep each old
   route's test, pointed at the new app, so the port shows nothing a client sees changed. Until then, the
   Flask tests run under the template's `filterwarnings = ["error"]`: a response that holds a file or a
