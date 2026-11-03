@@ -13,7 +13,8 @@ with the stacked templates' answers files in one reviewed PR, after a 3-way merg
 They use template-base `v2.0.2`, template-python `v2.0.0` and template-container `v2.0.0`, the first releases of the overlays.
 
 A project that was never made from a template has no old render to merge against: follow
-[no-template-history.md](no-template-history.md) (a 2-way merge; first used for andronics/trackie).
+[no-template-history.md](no-template-history.md) (a 2-way merge; first used for andronics/trackie). Its
+section 7 covers a staged migration, where the old code keeps running for a few PRs.
 
 ## After a template update
 
@@ -52,5 +53,8 @@ applied, so the skeleton's `api.py`, `cli.py serve`, `tests/unit/test_api.py` an
 - **Errors** are `{"detail": "..."}` (`HTTPException`); keep the old shape only if a client depends on it,
   and say so in a design record.
 - **Tests:** Flask's `test_client()` / pytest-flask become `fastapi.testclient.TestClient`. Keep each old
-  route's test, pointed at the new app, so the port shows nothing a client sees changed.
+  route's test, pointed at the new app, so the port shows nothing a client sees changed. Until then, the
+  Flask tests run under the template's `filterwarnings = ["error"]`: a response that holds a file or a
+  stream (`send_file`, a generator) and is never closed warns when it is collected, and that fails the test.
+  Close each one: `with client.get("/x") as r:`, or `r.close()`.
 

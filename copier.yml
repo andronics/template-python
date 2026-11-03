@@ -170,7 +170,7 @@ kind:
 
 python_version:
   type: str
-  help: Minimum Python version (Docker base image and the first CI matrix entry)
+  help: Minimum Python version, not the only one. It sets requires-python (>=), ruff's target, the Docker base image and the first CI matrix entry; CI also tests every newer supported version (3.13 tests 3.13 and 3.14)
   choices: ["3.13", "3.14"]
   default: "3.13"
 
