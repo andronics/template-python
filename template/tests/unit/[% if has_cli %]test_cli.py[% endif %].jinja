@@ -1,5 +1,9 @@
 import re
+[% if kind == 'service' %]
+from collections.abc import Callable, Iterator
+[% else %]
 from collections.abc import Callable
+[% endif %]
 from pathlib import Path
 
 import pytest
@@ -95,4 +99,131 @@ def test_serve_starts_uvicorn(
     result = runner.invoke(app, ["serve", "-c", str(write_config("listen:\n  port: 9100\n"))])
     assert result.exit_code == 0
     assert seen["port"] == 9100
+
+
+def free_port() -> int:
+    """A port nothing listens on (bound and released at once)."""
+    import socket
+
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return int(s.getsockname()[1])
+
+
+@pytest.fixture
+def running_app() -> Iterator[int]:
+    """The real app, served by uvicorn on 127.0.0.1 in a thread; yields its port."""
+    import threading
+    import time
+
+    import uvicorn
+
+    from [[ package_name ]].api import create_app
+    from [[ package_name ]].config import load_config
+
+    port = free_port()
+    server = uvicorn.Server(
+        uvicorn.Config(create_app(load_config()), host="127.0.0.1", port=port, log_level="error")
+    )
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    deadline = time.monotonic() + 10
+    while not server.started:
+        assert time.monotonic() < deadline, "uvicorn didn't start"
+        time.sleep(0.01)
+    yield port
+    server.should_exit = True
+    thread.join(10)
+
+
+@pytest.fixture
+def answering() -> Iterator[Callable[[int], tuple[int, list[str]]]]:
+    """A stub server on 127.0.0.1 that answers every GET with the status given; returns its
+    port and the paths it was asked for."""
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    servers: list[ThreadingHTTPServer] = []
+
+    def start(status: int) -> tuple[int, list[str]]:
+        paths: list[str] = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:  # noqa: N802 (http.server's name)
+                paths.append(self.path)
+                self.send_response(status)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+
+            def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+                pass
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        servers.append(server)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        return int(server.server_address[1]), paths
+
+    yield start
+    for server in servers:
+        server.shutdown()
+        server.server_close()
+
+
+def listen(port: int, host: str = "127.0.0.1") -> str:
+    return f"listen:\n  host: '{host}'\n  port: {port}\n"
+
+
+def test_health_passes_against_the_running_app(
+    running_app: int, write_config: Callable[..., Path]
+) -> None:
+    for extra in ([], ["--ready"]):
+        result = runner.invoke(app, ["health", "-c", str(write_config(listen(running_app))), *extra])
+        assert result.exit_code == 0, result.output
+        assert result.output == ""
+
+
+@pytest.mark.parametrize("host", ["0.0.0.0", "127.0.0.1"])  # noqa: S104
+def test_health_asks_loopback_for_a_wildcard_host(
+    host: str,
+    answering: Callable[[int], tuple[int, list[str]]],
+    write_config: Callable[..., Path],
+) -> None:
+    port, paths = answering(204)
+    result = runner.invoke(app, ["health", "-c", str(write_config(listen(port, host)))])
+    assert result.exit_code == 0, result.output
+    assert paths == ["[[ health_path ]]"]
+
+
+def test_health_ready_asks_readyz(
+    answering: Callable[[int], tuple[int, list[str]]], write_config: Callable[..., Path]
+) -> None:
+    port, paths = answering(200)
+    result = runner.invoke(app, ["health", "--ready", "-c", str(write_config(listen(port)))])
+    assert result.exit_code == 0, result.output
+    assert paths == ["/readyz"]
+
+
+def test_health_fails_on_503(
+    answering: Callable[[int], tuple[int, list[str]]], write_config: Callable[..., Path]
+) -> None:
+    port, _ = answering(503)
+    result = runner.invoke(app, ["health", "-c", str(write_config(listen(port)))])
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    assert result.stderr.count("\n") == 1 and "answered 503" in result.stderr
+
+
+def test_health_fails_when_nothing_listens(write_config: Callable[..., Path]) -> None:
+    result = runner.invoke(
+        app, ["health", "--timeout", "1", "-c", str(write_config(listen(free_port())))]
+    )
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    assert result.stderr.count("\n") == 1 and result.stderr.startswith("unhealthy: http://")
+
+
+def test_health_config_error_exits_2(write_config: Callable[..., Path]) -> None:
+    result = runner.invoke(app, ["health", "-c", str(write_config("listen:\n  port: nope\n"))])
+    assert result.exit_code == 2
+    assert "listen.port" in plain(result.stderr)
 [% endif %]
