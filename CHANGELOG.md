@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.4](https://github.com/andronics/template-python/compare/v2.4.3...v2.4.4) (2026-11-03)
+
+
+### 🐛 Bug Fixes
+
+* hand pre-commit's ruff hooks the files CI's ruff checks ([#50](https://github.com/andronics/template-python/issues/50)) ([8e665f1](https://github.com/andronics/template-python/commit/8e665f1b34fa42119c0bb51a515cab5ac27196d7))
+
 ## [2.4.3](https://github.com/andronics/template-python/compare/v2.4.2...v2.4.3) (2026-11-03)
 
 
