@@ -81,6 +81,24 @@ def test_definition_of_done(project: Path) -> None:
         assert result.returncode == 0 and "manifests OK" in result.stdout, result.stdout + result.stderr
 
 
+def test_openapi_snapshot(project: Path, variant: str) -> None:
+    """A service commits its OpenAPI schema; gen-wiki.py writes it and fails when it's stale (decision 0005)."""
+    snapshot = project / "docs/openapi.json"
+    if MATRIX[variant]["kind"] != "service":
+        assert not snapshot.exists()
+        return
+    schema = json.loads(snapshot.read_text())
+    assert schema["info"]["version"] == "snapshot" and "/readyz" in schema["paths"]
+    snapshot.write_text(snapshot.read_text().replace('"/readyz"', '"/ready"'))
+    try:
+        result = run(project, "uv", "run", "scripts/gen-wiki.py", "--check")
+        assert result.returncode == 1 and "docs/openapi.json" in result.stdout, result.stdout + result.stderr
+    finally:
+        sh("git", "checkout", "--", "docs/openapi.json", cwd=project)
+    ci = yaml.safe_load((project / ".github/workflows/stack-ci.yml").read_text())
+    assert ci["jobs"]["api-breaking"]["if"] == "github.event_name == 'pull_request'"
+
+
 @pytest.mark.docker
 def test_docker_checks(project: Path) -> None:
     """The Definition of done's Docker-only checks, and the CI-only linters."""

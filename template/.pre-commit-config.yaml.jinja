@@ -20,11 +20,11 @@ repos:
         types: [python]
         pass_filenames: false
       - id: gen-wiki
-        name: generated wiki sections
+        name: generated wiki sections[% if kind == 'service' %] and docs/openapi.json[% endif +%]
         entry: uv run scripts/gen-wiki.py --check
         language: system
         pass_filenames: false
-        files: ^(src/|docs/wiki/)
+        files: ^(src/|docs/wiki/[% if kind == 'service' %]|docs/openapi\.json$[% endif %])
       # Every template's cheap checks: the stack contract, the wiki standard, version and lock.
       - id: checks
         name: scripts/checks.sh

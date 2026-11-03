@@ -7,7 +7,7 @@ Python >= [[ python_version ]] with uv: always `uv run`, never `pip install` or 
 
 ## Don't read
 
-`uv.lock` (use `uv tree --depth 1`), `CHANGELOG.md` (use `git log`), `.venv/`, `htmlcov/`, `.coverage`, `.mypy_cache/`, `.ruff_cache/`, `.pytest_cache/`; generated wiki blocks (`<!-- generated:start/end -->`).
+`uv.lock` (use `uv tree --depth 1`), `CHANGELOG.md` (use `git log`), `.venv/`, `htmlcov/`, `.coverage`, `.mypy_cache/`, `.ruff_cache/`, `.pytest_cache/`; generated wiki blocks (`<!-- generated:start/end -->`)[% if kind == 'service' %], `docs/openapi.json`[% endif %].
 
 ## Commands
 
@@ -17,7 +17,7 @@ Python >= [[ python_version ]] with uv: always `uv run`, never `pip install` or 
 | Lint, format | `uv run ruff check --fix`, `uv run ruff format` |
 | Types (strict) | `uv run mypy` |
 | Tests (80% floor) / integration | `uv run pytest` / `RUN_INTEGRATION=1 uv run pytest -m integration --no-cov` |
-| Wiki sections | `uv run scripts/gen-wiki.py` |
+| Wiki sections[% if kind == 'service' %], `docs/openapi.json`[% endif %] | `uv run scripts/gen-wiki.py` |
 [% if has_cli %]
 | Run | `uv run [[ project_name ]] --help` |
 [% endif %]
