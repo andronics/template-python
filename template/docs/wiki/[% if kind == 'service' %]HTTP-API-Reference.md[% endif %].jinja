@@ -1,7 +1,7 @@
 [% import 'includes/layer.jinja' as layer with context %]
 # HTTP API Reference
 
-The server listens on port [[ port ]] by default. The live OpenAPI schema is served at `/openapi.json`, and interactive docs at `/docs`.
+The server listens on port [[ port ]] by default. The live OpenAPI schema is served at `/openapi.json`, and interactive docs at `/docs`. The same schema is committed as [`docs/openapi.json`]([[ repo_url ]]/blob/main/docs/openapi.json): CI fails when it's stale, and a pull request that breaks it must say so (`feat!:`).
 
 ## Endpoints
 
