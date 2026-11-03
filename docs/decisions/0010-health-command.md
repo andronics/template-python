@@ -2,7 +2,7 @@
 
 <!-- Add a line for this record to the index in docs/decisions/README.md (CI checks). -->
 
-Status: Proposed
+Status: Accepted (2026-11-03)
 Date: 2026-11-03
 Authors: Stephen Cox
 
@@ -71,12 +71,14 @@ rendered default. But:
   3. Template tests: the rendered Dockerfile's HEALTHCHECK names `health`.
   4. docs/migrating: add `health` when updating an existing service, and accept it in a legacy entry point.
 
-## Open questions
+## Resolved questions
 
-- Should the HEALTHCHECK pass `--ready`? Recommendation: no. Docker marks the container unhealthy, and
-  orchestrators that act on that restart it; restarting on a dependency outage only adds churn. Readiness
-  stays the k8s readinessProbe's job.
-- Is a breaking release right, or should the HEALTHCHECK fall back to the one-liner when `health` is
-  missing? Recommendation: breaking. A fallback needs a shell-form command that can't tell "no such
-  command" from "unhealthy" (Typer exits 2 for both an unknown command and a config error), and three
-  services is a small migration.
+The brain coordinator accepted every recommended answer for Stephen on 2026-11-03.
+
+1. **Should the HEALTHCHECK pass `--ready`?** No: it stays liveness. Docker marks the container unhealthy,
+   and orchestrators that act on that restart it; restarting on a dependency outage only adds churn.
+   Readiness stays the k8s readinessProbe's job.
+2. **A breaking release, or a HEALTHCHECK that falls back to the one-liner when `health` is missing?**
+   Breaking, with no fallback. A fallback needs a shell-form command that can't tell "no such command" from
+   "unhealthy" (Typer exits 2 for both an unknown command and a config error), and three services is a
+   small migration.
