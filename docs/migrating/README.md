@@ -123,11 +123,22 @@ applied, so the skeleton's `api.py`, `cli.py serve`, `tests/unit/test_api.py` an
 A `service` or `cli` project's skeleton `cli.py` is Typer: `version`, `config` and, for a service,
 `serve`. An argparse or Click CLI is ported onto it, in its own PR when the migration is staged:
 
-- **An option that sets a `metavar` names its flag:** `typer.Option("--context", metavar="CONTEXT",
-  help=...)`, never `typer.Option(metavar="CONTEXT", ...)` alone. qbt-rules' port, on Typer 0.27, reported an
-  option with a metavar and no flag name turning into `--CONTEXT`. On 0.27.3 the flag comes from the
-  Python parameter's name instead, which is no better: `hash_` is `--hash-`. A named flag pins it either
-  way, so name every option's flag.
+- **In `Annotated` style, never pass a default or metavar positionally to `typer.Option`: the first
+  positional arguments are flag declarations.** Give flags explicitly (`"--context"`) and the metavar by
+  keyword; the default goes after `=`:
+
+  ```python
+  context: Annotated[str | None, typer.Option(None, metavar="CONTEXT")] = None  # crashes at startup
+  context: Annotated[str | None, typer.Option("--context", metavar="CONTEXT")] = None
+  ```
+
+  On Typer 0.27.3 and Click 8.5.0, a `None` there crashes the CLI at startup (`AttributeError: 'NoneType'
+  object has no attribute 'isidentifier'`). A string meant as a default or metavar becomes a declaration:
+  `typer.Option("CONTEXT")` fails with `TypeError: Name 'context' defined twice`, and
+  `typer.Option("config.toml")` silently makes `config.toml` the option's only flag, so `--context` is gone.
+- **Name every option's flag.** Without one, Typer 0.27.3 takes it from the parameter's name (`hash_` is
+  `--hash-`), except that a metavar matching that name, ignoring case, sets its spelling: `context` with
+  `metavar="CONTEXT"` is `--CONTEXT` (Typer 0.20 gave `--context`). Any other metavar leaves the flag alone.
 - **Tests match error text without colours.** In CI, rich colours Click's usage errors: Typer forces a
   terminal when `GITHUB_ACTIONS`, `FORCE_COLOR` or `PY_COLORS` is set, reading them once at import, so the
   environment given to `CliRunner.invoke` can't turn it off, and `NO_COLOR` still leaves bold. The codes
