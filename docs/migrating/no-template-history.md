@@ -201,6 +201,12 @@ some template files describe code that isn't running yet:
       app.router.routes.append(Route(path, legacy, include_in_schema=False))
   ```
 
+- **The step that removes the legacy app** removes its dependencies too. Flask brought `itsdangerous`,
+  which Starlette's `SessionMiddleware` needs at startup, and `jinja2`: add the ones the ported pages use.
+  Ported pages build relative URLs, since the skeleton's uvicorn has no `root_path` setting and a proxy
+  that strips a prefix breaks absolute ones. Both are in [README.md](README.md), "Porting a service to
+  FastAPI"; the CLI step's notes are in its "Porting a CLI to Typer".
+
 ## 8. Check, open the PR, merge
 
 Everything in `.agents/stack.md`'s Definition of done, plus `check-wiki.py --strict`, the image build, and

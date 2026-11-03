@@ -50,6 +50,30 @@ applied, so the skeleton's `api.py`, `cli.py serve`, `tests/unit/test_api.py` an
   [0007](../decisions/0007-metrics-endpoint.md)). Re-declare prometheus_client metrics as interpose
   `Counter`, `Gauge` and `Histogram` on it, keeping their names, and drop prometheus_client's multiprocess
   mode (one process per pod). Label values are declared up front (`Label("status", [...])`).
+  - **Don't keep prometheus_client behind an extra.** The image installs only the extras the Copier
+    answer `image_extras` names, none by default (the Dockerfile is template-python's; template-container
+    builds and publishes it). An app whose metrics need a `metrics` extra can't turn them on in the
+    shipped image. The Registry needs no extra. If prometheus_client must stay, make it a main dependency,
+    or answer `image_extras` with the extra, which adds `--extra metrics` to the Dockerfile's `uv sync`
+    lines (CI's tests still don't install it):
+
+    ```sh
+    uvx copier update --trust --defaults --skip-tasks --vcs-ref <python _commit> -a .copier-answers.stack-python.yml -d 'image_extras=[metrics]'
+    ```
+- **Removing Flask** removes what came with it. Starlette's `SessionMiddleware` imports `itsdangerous`
+  when its module loads, so without it the app fails at startup (and the tests at collection) with
+  `ModuleNotFoundError`; `Jinja2Templates` needs `jinja2`. FastAPI depends on neither. Add each one the app
+  uses to `dependencies` in the PR that drops Flask (andronics/qbt-rules#40).
+- **Server-rendered pages use relative URLs.** Starlette's `request.url_for` returns an absolute URL, built
+  from the request's host and the app's `root_path`, and the skeleton's `serve` sets no `root_path`.
+  Behind a proxy that strips a path prefix (nginx `location /app/ { proxy_pass http://backend/; }`), every
+  link, form action, asset URL and redirect built from it leaves the prefix. Make each one relative to the
+  current page: take the target's path (`request.url_for(name).path`), make it relative to
+  `request.url.path`, and start it with `./` or `../` so it can't be read as a scheme or a host. A
+  `RedirectResponse` takes the same relative URL; the browser resolves it against the request's. A
+  `?next=` parameter holds an app path, reduced to a same-origin one. The pages then work under any prefix,
+  with no setting. qbt-rules' `web.relative_url` and its templates' `href` do this, tested behind nginx
+  under `/qbt/` (andronics/qbt-rules#40).
 - **Errors** are `{"detail": "..."}` (`HTTPException`); keep the old shape only if a client depends on it,
   and say so in a design record.
   - **Your own 500 body needs a middleware.** A handler registered for `Exception` (or 500) runs in
@@ -93,4 +117,21 @@ applied, so the skeleton's `api.py`, `cli.py serve`, `tests/unit/test_api.py` an
   Flask tests run under the template's `filterwarnings = ["error"]`: a response that holds a file or a
   stream (`send_file`, a generator) and is never closed warns when it is collected, and that fails the test.
   Close each one: `with client.get("/x") as r:`, or `r.close()`.
+
+## Porting a CLI to Typer
+
+A `service` or `cli` project's skeleton `cli.py` is Typer: `version`, `config` and, for a service,
+`serve`. An argparse or Click CLI is ported onto it, in its own PR when the migration is staged:
+
+- **An option that sets a `metavar` names its flag:** `typer.Option("--context", metavar="CONTEXT",
+  help=...)`, never `typer.Option(metavar="CONTEXT", ...)` alone. qbt-rules' port, on Typer 0.27, reported an
+  option with a metavar and no flag name turning into `--CONTEXT`. On 0.27.3 the flag comes from the
+  Python parameter's name instead, which is no better: `hash_` is `--hash-`. A named flag pins it either
+  way, so name every option's flag.
+- **Tests match error text without colours.** In CI, rich colours Click's usage errors: Typer forces a
+  terminal when `GITHUB_ACTIONS`, `FORCE_COLOR` or `PY_COLORS` is set, reading them once at import, so the
+  environment given to `CliRunner.invoke` can't turn it off, and `NO_COLOR` still leaves bold. The codes
+  split the text (`--hash` is written as `-` and `-hash`), so a test that passes locally fails in CI. Strip
+  them before matching, with `re.sub(r"\x1b\[[0-9;]*m", "", result.output)`, and match a short phrase:
+  the error box wraps at the terminal's width.
 
