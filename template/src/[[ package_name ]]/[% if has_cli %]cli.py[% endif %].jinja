@@ -91,6 +91,52 @@ def serve(config: ConfigOption = None) -> None:
         log_level=cfg.log_level.lower(),
         proxy_headers=True,
     )
+
+
+# A server bound to every interface is asked on loopback.
+WILDCARD_HOSTS = ("0.0.0.0", "::")  # noqa: S104
+
+
+@app.command()
+def health(
+    config: ConfigOption = None,
+    ready: Annotated[
+        bool,
+        typer.Option("--ready", help="Ask /readyz (readiness) instead of [[ health_path ]] (liveness)."),
+    ] = False,
+    timeout: Annotated[
+        float, typer.Option("--timeout", min=0.1, help="Seconds to wait for the answer.")
+    ] = 4.0,
+) -> None:
+    """Exit 0 if the running server answers its health endpoint with 2xx, 1 if not.
+
+    The image's HEALTHCHECK runs it (template-python decision 0010). It reads the config as
+    serve does and asks http://<listen.host>:<listen.port>, or 127.0.0.1 when listen.host is
+    0.0.0.0 or ::. One line on stderr says why it failed; nothing is printed on success.
+    """
+    import urllib.error
+    import urllib.request
+
+    cfg = _load(config)
+    host = "127.0.0.1" if cfg.host in WILDCARD_HOSTS else cfg.host
+    if ":" in host:
+        host = f"[{host}]"
+    url = f"http://{host}:{cfg.port}{'/readyz' if ready else '[[ health_path ]]'}"
+    # No proxy: a service's own HTTP(S)_PROXY must not carry its health check elsewhere.
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    try:
+        with opener.open(url, timeout=timeout) as response:
+            status = response.status
+    except urllib.error.HTTPError as e:
+        e.close()
+        status = e.code
+    except (urllib.error.URLError, OSError) as e:
+        reason = e.reason if isinstance(e, urllib.error.URLError) else e
+        typer.echo(f"unhealthy: {url}: {reason}", err=True)
+        raise typer.Exit(1) from e
+    if not 200 <= status < 300:
+        typer.echo(f"unhealthy: {url} answered {status}", err=True)
+        raise typer.Exit(1)
 [% endif %]
 
 
