@@ -34,7 +34,7 @@ headings = ["Endpoints", "Authentication", "Errors"]
 [pages.API-Reference]
 headings = ["Public API", "Stability"]
 [% endif %]
-[% if contrib %]
+[% if contrib or kind == 'service' %]
 
 [pages.Deployment]
 headings = [[ ((contrib | map('replace', 'docker', 'Docker Compose') | map('replace', 'k8s', 'Kubernetes') | list) + ['Upgrading']) | tojson ]]
