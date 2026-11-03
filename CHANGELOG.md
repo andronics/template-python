@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.4.0](https://github.com/andronics/template-python/compare/v2.3.4...v2.4.0) (2026-11-03)
+
+
+### ✨ Features
+
+* a lifespan with background threads, and /readyz 503 when one dies ([#36](https://github.com/andronics/template-python/issues/36)) ([332e9df](https://github.com/andronics/template-python/commit/332e9df20ff67ff1f7c5b573ef40e71f1a96eaa9))
+* a Prometheus /metrics endpoint on interpose's registry ([#38](https://github.com/andronics/template-python/issues/38)) ([f5d0bb6](https://github.com/andronics/template-python/commit/f5d0bb62cd988b047241800e2455d4060479dfaf))
+* commit docs/openapi.json and fail CI when it drifts or breaks undeclared ([#35](https://github.com/andronics/template-python/issues/35)) ([449ee36](https://github.com/andronics/template-python/commit/449ee36427021e93008df871130651348cc4fca5))
+
+
+### 📚 Documentation
+
+* one uvicorn process per pod, scale by replicas, a singleton scheduler ([#39](https://github.com/andronics/template-python/issues/39)) ([642df6c](https://github.com/andronics/template-python/commit/642df6c062eee0a067cf73ea403cb394f37f9092))
+
 ## [2.3.4](https://github.com/andronics/template-python/compare/v2.3.3...v2.3.4) (2026-11-02)
 
 
