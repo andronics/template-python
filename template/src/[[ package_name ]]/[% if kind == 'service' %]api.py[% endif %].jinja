@@ -7,6 +7,7 @@ it needs more than a line.
 
 from __future__ import annotations
 
+import logging
 import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -19,6 +20,8 @@ from interpose.metrics import CONTENT_TYPE, Gauge, Label, Registry
 from [[ package_name ]] import __description__, __version__
 from [[ package_name ]].config import Config
 
+logger = logging.getLogger(__name__)
+
 
 class Target(Protocol):
     """A background thread's body: runs until `stop` is set."""
@@ -30,9 +33,10 @@ class BackgroundThreads:
     """Threads that run beside the API (pollers, workers, schedulers).
 
     `add` registers one before the app starts; the lifespan starts them all, and on
-    shutdown sets `stop` and joins each for up to `join_timeout` seconds. A target
-    runs until `stop` is set: loop on `while not stop.wait(interval):`. A thread
-    that returns or raises is dead, and /readyz names it.
+    shutdown sets `stop` and joins each for up to `join_timeout` seconds, logging a
+    warning naming any still running. A target runs until `stop` is set: loop on
+    `while not stop.wait(interval):`. A thread that returns or raises is dead, and
+    /readyz names it.
     """
 
     def __init__(self, join_timeout: float = 5.0) -> None:
@@ -60,6 +64,10 @@ class BackgroundThreads:
         self.stop.set()
         for thread in self._threads:
             thread.join(self.join_timeout)
+            if thread.is_alive():
+                logger.warning(
+                    "background thread %s did not stop within %ss", thread.name, self.join_timeout
+                )
 
     def dead(self) -> list[str]:
         """The registered threads not running: never started, returned or raised."""

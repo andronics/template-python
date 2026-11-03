@@ -44,8 +44,8 @@ applied, so the skeleton's `api.py`, `cli.py serve`, `tests/unit/test_api.py` an
   not at import or app creation: register each in `create_app` with `threads.add("worker", run)`, where
   `run(stop)` loops until the `threading.Event` it gets is set (`BackgroundThreads` in `api.py`, decision
   [0006](../decisions/0006-lifespan-threads.md)). The lifespan starts them, and on shutdown sets `stop` and
-  joins each with a timeout; `/readyz` answers 503 naming any that died. Tests that build the app without
-  `with TestClient(app)` never start them.
+  joins each with a timeout, logging a warning naming any still running; `/readyz` answers 503 naming any
+  that died. Tests that build the app without `with TestClient(app)` never start them.
 - **Metrics:** the skeleton serves `/metrics` from an interpose `Registry` (`app.state.metrics`, decision
   [0007](../decisions/0007-metrics-endpoint.md)). Re-declare prometheus_client metrics as interpose
   `Counter`, `Gauge` and `Histogram` on it, keeping their names, and drop prometheus_client's multiprocess
