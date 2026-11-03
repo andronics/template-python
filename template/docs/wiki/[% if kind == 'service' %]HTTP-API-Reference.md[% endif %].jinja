@@ -12,6 +12,8 @@ Generated from the code: don't edit the table, run `[[ layer.gen_wiki ]]`.
 
 `[[ health_path ]]` (liveness) answers as long as the process runs. `/readyz` (readiness) answers 503 while the service can't serve: a background thread has died (the response names it), or a dependency is down. Orchestrators should restart on the first and route traffic on the second.
 
+`/metrics` serves Prometheus metrics in the text exposition format (`[[ package_name ]]_build_info`, plus the service's own). It's meant for an in-cluster scraper: keep it off the public route.
+
 <!-- guidance: for every non-health endpoint, add a subsection with the request (parameters, body), the response (with an example) and the errors it can return. -->
 
 ## Authentication
