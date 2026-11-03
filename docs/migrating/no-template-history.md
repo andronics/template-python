@@ -173,6 +173,33 @@ some template files describe code that isn't running yet:
   listens on by default and `health_path` with a path it serves, make it bind every interface itself, and
   have a deployment that changes the port set `<PREFIX>LISTEN_PORT` to the same value as the legacy
   variable. Each mismatch disappears when config moves onto interpose.
+- **`health_path` in the API-port step.** Once FastAPI serves the API, answer `health_path: /healthz` again
+  (the skeleton's liveness route; keep the old path as an extra route until its callers move). Update
+  template-python at its pinned version with the new answer, then run `copier update` of template-container
+  at *its* pinned version too: template-container keeps its own copy of the stack's answers
+  (`stack_answers` in `.copier-answers.container.yml`) and renders `health_path` from that copy into
+  `container-build.yml`'s smoke test, the compose file and the k8s probes. The update rereads the stack's
+  answers file because the stale copy fails its validator. Both commands, with the `_commit` each answers
+  file records:
+
+  ```sh
+  uvx copier update --trust --defaults --skip-tasks --vcs-ref <python _commit> -a .copier-answers.stack-python.yml -d health_path=/healthz
+  uvx copier update --trust --defaults --skip-tasks --vcs-ref <container _commit> -a .copier-answers.container.yml
+  ```
+
+  Check `git diff` shows `/healthz` in the Dockerfile's HEALTHCHECK and in the container files.
+  (andronics/qbt-rules' step 4c: one commit for each update.)
+- **The legacy app beside FastAPI.** When FastAPI serves part of the API and the old WSGI app (Flask) the
+  rest, mount the old one through `a2wsgi.WSGIMiddleware` on each path it still serves, never at `/`. Starlette
+  prefers a route whose path matches over one whose path and method match only partly, so with a mount at
+  `/` a request to a FastAPI route with the wrong method goes to the legacy app: every 405 silently becomes
+  its 404. One route per legacy path keeps the 405s, and keeps unknown paths on FastAPI's 404:
+
+  ```python
+  legacy = WSGIMiddleware(flask_app)
+  for path in ("/", "/login", "/jobs/{job_id}", "/static/{path:path}"):
+      app.router.routes.append(Route(path, legacy, include_in_schema=False))
+  ```
 
 ## 8. Check, open the PR, merge
 
