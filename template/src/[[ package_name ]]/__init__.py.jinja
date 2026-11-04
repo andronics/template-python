@@ -7,6 +7,12 @@
 """[[ doc ]]"""
 [% endif %]
 
+[% if stdlib_only %]
+# The version is the program's literal ([[ package_name ]].py runs alone, with no package metadata).
+from [[ package_name ]].[[ package_name ]] import __version__
+
+__all__ = ["__version__"]
+[% else %]
 from importlib.metadata import PackageNotFoundError, metadata, version
 
 try:
@@ -18,3 +24,4 @@ except PackageNotFoundError:  # pragma: no cover - a source tree that was never 
     __description__ = ""
 
 __all__ = ["__description__", "__version__"]
+[% endif %]

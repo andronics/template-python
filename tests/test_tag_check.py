@@ -313,10 +313,10 @@ def test_workflow(project: Path) -> None:
 
 
 def test_rendered_script(project: Path, variant: str, tmp_path: Path) -> None:
-    """A new library has no tag-pinned dependency: the run says so and exits 0. A service or cli has
+    """A new library or stdlib-cli has no tag-pinned dependency: the run says so and exits 0. A service or cli has
     interpose (decision 0003), which a run finds; a dry run against fixture tags changes nothing."""
     cmd = [sys.executable, "scripts/tag-check.py"]
-    if MATRIX[variant]["kind"] == "library":
+    if MATRIX[variant]["kind"] in ("library", "stdlib-cli"):
         result = subprocess.run(cmd, cwd=project, capture_output=True, text=True)
         assert (result.returncode, result.stdout) == (0, "tag-check: no tag-pinned git dependencies\n"), result.stderr
         return

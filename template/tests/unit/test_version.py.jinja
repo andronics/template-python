@@ -4,4 +4,9 @@ import [[ package_name ]]
 
 
 def test_version_is_pep440() -> None:
+[% if stdlib_only %]
+    # A literal release-please bumps: always a real version, installed or not (decision 0011).
+    assert re.fullmatch(r"\d+\.\d+\.\d+.*", [[ package_name ]].__version__)
+[% else %]
     assert re.fullmatch(r"\d+\.\d+\.\d+.*|0\+unknown", [[ package_name ]].__version__)
+[% endif %]

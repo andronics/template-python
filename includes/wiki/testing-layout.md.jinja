@@ -1,5 +1,7 @@
 | `tests/unit/` | Fast and offline: no network, no real external systems. Most tests. |
 | `tests/integration/` | Real dependencies, marked `@pytest.mark.integration`; skipped unless `RUN_INTEGRATION=1` |
-[% if has_cli %]
+[% if stdlib_only %]
+| `tests/unit/test_[[ package_name ]].py` | The program: in-process, and the file alone as `python3 -IS` runs it |
+[% elif has_cli %]
 | `tests/conftest.py` | Shared fixtures: `clean_env` (no `[[ env_prefix ]]*` leakage), `write_config` |
 [% endif %]

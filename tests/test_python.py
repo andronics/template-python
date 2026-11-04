@@ -76,6 +76,9 @@ def test_definition_of_done(project: Path) -> None:
     for cmd in DOD:
         result = run(project, *cmd)
         assert result.returncode == 0, f"{' '.join(cmd)}:\n{result.stdout}\n{result.stderr}"
+    if (project / "scripts/check-stdlib.py").is_file():  # stdlib-cli (decision 0011)
+        result = run(project, "uv", "run", "scripts/check-stdlib.py")
+        assert (result.returncode, result.stdout) == (0, "stdlib OK\n"), result.stdout + result.stderr
     if (project / "scripts/check-manifests.sh").is_file():
         result = run(project, "bash", "scripts/check-manifests.sh")
         assert result.returncode == 0 and "manifests OK" in result.stdout, result.stdout + result.stderr
@@ -123,7 +126,7 @@ def test_never_asks_base_questions(base_src: Path) -> None:
     assert not asked & {k for k in base if not k.startswith("_")}
     assert config["_external_data"] == {"base": ".copier-answers.base.yml"}
     assert config["_answers_file"] == ".copier-answers.stack-python.yml"
-    assert set(config["kind"]["choices"].values()) == {"service", "cli", "library"}
+    assert set(config["kind"]["choices"].values()) == {"service", "cli", "library", "stdlib-cli"}
 
 
 def test_answers_files(project: Path, variant: str) -> None:

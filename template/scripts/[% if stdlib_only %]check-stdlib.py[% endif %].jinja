@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+"""Check that the program needs nothing but the standard library. Template-owned: template-python.
+
+    uv run scripts/check-stdlib.py
+
+A stdlib-cli project runs as `python3 -IS` (template-python decision 0011), where only the
+standard library can be imported, and its program file runs alone:
+
+    python3 -IS src/[[ package_name ]]/[[ package_name ]].py
+
+This fails if:
+
+1. pyproject.toml's [project] dependencies isn't empty, or it has [project.optional-dependencies];
+2. a module in the package imports (anywhere, functions included) a top-level module outside
+   sys.stdlib_module_names, or calls importlib.import_module or __import__ with anything but a
+   string literal naming a standard-library module;
+3. the program file imports from its own package at all, relatively or absolutely;
+4. the program file's first line isn't a shebang whose flags include -I and -S.
+
+It checks against the running Python's sys.stdlib_module_names, so CI runs it on every
+supported version. Standard library only itself.
+"""
+
+from __future__ import annotations
+
+import ast
+import sys
+import tomllib
+from pathlib import Path
+
+PACKAGE = "[[ package_name ]]"
+SOURCE = Path("src") / PACKAGE
+PROGRAM = SOURCE / f"{PACKAGE}.py"
+STDLIB = frozenset(sys.stdlib_module_names)
+
+
+def check_pyproject(path: Path) -> list[str]:
+    project = tomllib.loads(path.read_text(encoding="utf-8")).get("project", {})
+    errors = []
+    if project.get("dependencies"):
+        names = ", ".join(map(str, project["dependencies"]))
+        errors.append(
+            f"{path}: [project] dependencies must be empty (standard library only): {names}"
+        )
+    if "optional-dependencies" in project:
+        errors.append(
+            f"{path}: [project.optional-dependencies] isn't allowed (standard library only)"
+        )
+    return errors
+
+
+def _dynamic_import(node: ast.Call) -> bool:
+    """importlib.import_module(...), import_module(...) or __import__(...)."""
+    func = node.func
+    if isinstance(func, ast.Name):
+        return func.id in ("__import__", "import_module")
+    return isinstance(func, ast.Attribute) and func.attr == "import_module"
+
+
+def check_module(path: Path, program: bool) -> list[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    errors = []
+    for node in ast.walk(tree):
+        where = f"{path}:{getattr(node, 'lineno', 0)}"
+        names: list[str] = []
+        if isinstance(node, ast.Import):
+            names = [alias.name for alias in node.names]
+        elif isinstance(node, ast.ImportFrom):
+            if node.level:
+                if program:
+                    errors.append(f"{where}: the program file imports from its own package")
+                continue
+            names = [node.module or ""]
+        elif isinstance(node, ast.Call) and _dynamic_import(node):
+            arg = node.args[0] if node.args else None
+            if not (isinstance(arg, ast.Constant) and isinstance(arg.value, str)):
+                errors.append(f"{where}: a dynamic import of a computed name can't be checked")
+                continue
+            names = [arg.value]
+            if names[0].split(".")[0] not in STDLIB:
+                errors.append(f"{where}: a dynamic import of {names[0]}, not the standard library")
+            continue
+        for name in names:
+            top = name.split(".")[0]
+            if top == PACKAGE:
+                if program:
+                    errors.append(
+                        f"{where}: the program file imports from its own package ({name})"
+                    )
+            elif top not in STDLIB:
+                errors.append(f"{where}: imports {name}, which isn't the standard library")
+    return errors
+
+
+def check_shebang(path: Path) -> list[str]:
+    first = path.read_text(encoding="utf-8").partition("\n")[0]
+    words = first[2:].split() if first.startswith("#!") else []
+    python = next((i for i, w in enumerate(words) if Path(w).name.startswith("python")), None)
+    if python is None:
+        return [
+            f"{path}:1: the first line must be a python shebang with -IS: #!/usr/bin/python3 -IS"
+        ]
+    flags = {
+        c
+        for w in words[python + 1 :]
+        if w.startswith("-") and not w.startswith("--")
+        for c in w[1:]
+    }
+    missing = [f"-{f}" for f in "IS" if f not in flags]
+    if missing:
+        return [
+            f"{path}:1: the shebang's flags must include -I and -S (missing {', '.join(missing)})"
+        ]
+    return []
+
+
+def main() -> int:
+    if not PROGRAM.is_file():
+        print(f"error: {PROGRAM} is missing: it is the program (decision 0011)")
+        return 1
+    errors = check_pyproject(Path("pyproject.toml"))
+    for path in sorted(SOURCE.rglob("*.py")):
+        errors += check_module(path, program=path == PROGRAM)
+    errors += check_shebang(PROGRAM)
+    for error in errors:
+        print(f"error: {error}")
+    if errors:
+        return 1
+    print("stdlib OK")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

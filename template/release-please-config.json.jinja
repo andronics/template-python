@@ -27,6 +27,7 @@
 [% set extra = [] %]
 [% if 'k8s' in contrib %][% set _ = extra.append('contrib/k8s/kustomization.yaml') %][% endif %]
 [% if 'docker' in contrib %][% set _ = extra.append('contrib/docker/compose.yml') %][% endif %]
+[% if stdlib_only %][% set _ = extra.append('src/' ~ package_name ~ '/' ~ package_name ~ '.py') %][% endif %]
 [% for f in extra %]
         {"type": "generic", "path": "[[ f ]]"}[[ "," if not loop.last ]]
 [% endfor %]

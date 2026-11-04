@@ -1,4 +1,5 @@
-"""Decision 0003: service and cli projects get a thin config.py on interpose; libraries get nothing."""
+"""Decision 0003: service and cli projects get a thin config.py on interpose; libraries and
+stdlib-cli projects (decision 0011) get nothing."""
 
 from __future__ import annotations
 
@@ -23,7 +24,7 @@ METADATA = (
 def test_interpose_only_with_a_cli(project: Path, variant: str) -> None:
     pyproject = (project / "pyproject.toml").read_text()
     dependabot = (project / ".github/dependabot.yml").read_text()
-    if MATRIX[variant]["kind"] == "library":
+    if MATRIX[variant]["kind"] in ("library", "stdlib-cli"):
         assert "interpose" not in pyproject + dependabot
         assert not (project / "src/demo/config.py").exists()
         return

@@ -6,7 +6,10 @@
 
 ## Secrets
 
-[% if has_cli %]
+[% if stdlib_only %]
+- `[[ project_name ]]` takes its input from arguments and reads nothing from its caller's environment it doesn't document. A secret, if one is ever needed, comes from a file it names, never an argument (`ps` shows those), and is never logged.
+- It runs as `python3 -IS` and imports only the standard library: no `PYTHON*` variable, user site folder or site-packages changes what it runs.
+[% elif has_cli %]
 - Give each secret through `[[ env_prefix ]]<KEY>_FILE`, a mounted file. A secret setting is also read from its plain variable and the config file, like any setting, so keep it out of both: `docker inspect` and `ps` show variables. See [In-Depth Configuration](In-Depth-Configuration#secrets).
 - Values are never logged. Logs and `[[ project_name ]] config` show where a value came from, never the value itself.
 [% else %]
