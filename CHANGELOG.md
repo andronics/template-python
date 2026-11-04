@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.5](https://github.com/andronics/template-python/compare/v2.4.4...v2.4.5) (2026-11-03)
+
+
+### 📚 Documentation
+
+* **adr:** accept a built-in health command ([#52](https://github.com/andronics/template-python/issues/52)) ([f1ffa67](https://github.com/andronics/template-python/commit/f1ffa67de8f9fd63cdbdb6301a8ac46af29131a7))
+
 ## [2.4.4](https://github.com/andronics/template-python/compare/v2.4.3...v2.4.4) (2026-11-03)
 
 
