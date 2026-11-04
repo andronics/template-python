@@ -1,6 +1,6 @@
 #!/usr/bin/python3 -IS
 [#! Escaped and wrapped as __init__.py's, so a long or quoted description passes ruff. !#]
-[% set doc = description | replace('\\', '\\\\') | replace('"', '\\"') | wordwrap(96, break_long_words=false, break_on_hyphens=false) %]
+[% set doc = description | replace('\\', '\\\\') | replace('"', '\\"') | wordwrap(94, break_long_words=false, break_on_hyphens=false) %]
 [% if '\n' in doc %]
 """[[ doc ]]
 """

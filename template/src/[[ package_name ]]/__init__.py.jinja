@@ -1,5 +1,5 @@
 [#! Escaped and wrapped, so a long or quoted description passes ruff (#52). !#]
-[% set doc = description | replace('\\', '\\\\') | replace('"', '\\"') | wordwrap(96, break_long_words=false, break_on_hyphens=false) %]
+[% set doc = description | replace('\\', '\\\\') | replace('"', '\\"') | wordwrap(94, break_long_words=false, break_on_hyphens=false) %]
 [% if '\n' in doc %]
 """[[ doc ]]
 """

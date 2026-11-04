@@ -2,7 +2,7 @@
 name = "[[ project_name ]]"
 # Owned by release-please: never edit by hand (see the wiki's Release-Process page).
 version = "0.0.0"
-description = [[ description | tojson ]]
+description = [[ description | to_json(ensure_ascii=False) ]]
 readme = "README.md"
 requires-python = ">=[[ python_version ]]"
 [% if license == 'Proprietary' %]
