@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.6.3](https://github.com/andronics/template-python/compare/v2.6.2...v2.6.3) (2026-11-04)
+
+
+### 🐛 Bug Fixes
+
+* **copier:** descriptions with any Unicode and any length scaffold cleanly ([#72](https://github.com/andronics/template-python/issues/72)) ([84535ed](https://github.com/andronics/template-python/commit/84535ed3fb76bde7fa751950edfe7be14541e739))
+
 ## [2.6.2](https://github.com/andronics/template-python/compare/v2.6.1...v2.6.2) (2026-11-04)
 
 
