@@ -1,5 +1,6 @@
 """The wiki's settings table (scripts/gen-wiki.py): each kind of setting's row, section settings
-(interpose v0.4.0's `is_section`) included, in every variant that has the table.
+(interpose v0.4.0's `is_section`) and a list section's item fields (v0.4.1's `fields`) included, in
+every variant that has the table.
 
 The rows come from stand-ins for interpose's `Setting`, so the template's interpose pin needn't move
 to cover a newer interpose: gen-wiki.py reads only the settings' attributes.
@@ -20,7 +21,7 @@ from conftest import MATRIX
 
 @dataclass(frozen=True)
 class Setting:
-    """interpose v0.4.0's Setting, as far as gen-wiki.py reads it."""
+    """interpose v0.4.1's Setting, as far as gen-wiki.py reads it."""
 
     key: str
     default: str | int | bool
@@ -28,6 +29,7 @@ class Setting:
     secret: bool = False
     is_list: bool = False
     is_section: bool = False
+    fields: tuple[Setting, ...] = ()
     prefix: str = "DEMO_"
 
     @property
@@ -56,6 +58,14 @@ SECTIONS = [
      ("| `routes` | `DEMO_ROUTES_FILE` | *(empty list)* | The routes. "
      "A list of sections: YAML, from the config file or the `_FILE` variable's file. |")),
 ]  # fmt: skip
+# A list section with item fields (interpose v0.4.1), which indexed variables can also set.
+INDEXED = (
+    Setting("jobs", "", "The jobs.", is_list=True, is_section=True,
+            fields=(Setting("name", "", "Name."), Setting("cron", "", "When."))),
+    ("| `jobs` | `DEMO_JOBS_FILE`, or `DEMO_JOBS_<N>_<FIELD>` | *(empty list)* | The jobs. "
+     "A list of sections: YAML, from the config file or the `_FILE` variable's file. "
+     "Or item N's fields as indexed variables, N from 0, each with a `_FILE`. |"),
+)  # fmt: skip
 HEADER = ["| Key | Environment variable | Default | Description |", "|---|---|---|---|"]
 
 
@@ -90,4 +100,14 @@ def test_section_rows(project: Path, variant: str, monkeypatch: pytest.MonkeyPat
         pytest.skip("no settings block without config.py")
     settings = [UNCHANGED[0][0], *(s for s, _ in SECTIONS), UNCHANGED[3][0]]
     rows = [UNCHANGED[0][1], *(row for _, row in SECTIONS), UNCHANGED[3][1]]
+    assert _table(project, monkeypatch, settings) == "\n".join([*HEADER, *rows])
+
+
+def test_indexed_list_section_row(project: Path, variant: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A list section with fields also names its indexed variables, `<N>_<FIELD>`; a list section without
+    fields, and the rows around it, don't change."""
+    if MATRIX[variant]["kind"] in ("library", "stdlib-cli"):
+        pytest.skip("no settings block without config.py")
+    settings = [UNCHANGED[0][0], SECTIONS[1][0], INDEXED[0], UNCHANGED[3][0]]
+    rows = [UNCHANGED[0][1], SECTIONS[1][1], INDEXED[1], UNCHANGED[3][1]]
     assert _table(project, monkeypatch, settings) == "\n".join([*HEADER, *rows])
