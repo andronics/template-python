@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.6.0](https://github.com/andronics/template-python/compare/v2.5.1...v2.6.0) (2026-11-04)
+
+
+### ✨ Features
+
+* **wiki:** show a list section's indexed variables ([#68](https://github.com/andronics/template-python/issues/68)) ([0f6a6de](https://github.com/andronics/template-python/commit/0f6a6ded7b66d3fd8c0c5beed57a69531d46d3f8))
+* **wiki:** show section settings in the generated settings table ([#63](https://github.com/andronics/template-python/issues/63)) ([fea29f9](https://github.com/andronics/template-python/commit/fea29f9dbc2cf421311f10b875dbcd8f8781bf57))
+
+
+### 🐛 Bug Fixes
+
+* **release:** keep the release PR from closing issues ([#64](https://github.com/andronics/template-python/issues/64)) ([c6cc81f](https://github.com/andronics/template-python/commit/c6cc81fb58ec19bc5e688fee68f73afff1ad8644))
+
+
+### 📚 Documentation
+
+* **decisions:** propose a stdlib-cli seeded test that fits real programs (0012) ([#65](https://github.com/andronics/template-python/issues/65)) ([a1d325e](https://github.com/andronics/template-python/commit/a1d325e2355a9aee900f5c04d52876feab7ab571))
+* **design:** give the record template a change log ([#67](https://github.com/andronics/template-python/issues/67)) ([e514cd2](https://github.com/andronics/template-python/commit/e514cd26b7d6d83c4152c626c5e519ca64e72f3c))
+
 ## [2.5.1](https://github.com/andronics/template-python/compare/v2.5.0...v2.5.1) (2026-11-04)
 
 
