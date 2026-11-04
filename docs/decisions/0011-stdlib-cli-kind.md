@@ -5,6 +5,7 @@
 Status: Approved (2026-11-04)
 Date: 2026-11-04
 Authors: Stephen Cox
+Partly superseded by: [0012](0012-stdlib-seeded-test.md) (Proposed), if approved: the seeded test's usage-error code and how it runs the program
 
 ## Context
 
