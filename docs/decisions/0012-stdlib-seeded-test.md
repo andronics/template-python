@@ -2,7 +2,7 @@
 
 <!-- Add a line for this record to the index in docs/decisions/README.md (CI checks). -->
 
-Status: Proposed
+Status: Approved (2026-11-04)
 Date: 2026-11-04
 Authors: Stephen Cox
 
@@ -166,27 +166,21 @@ Python 3.13; the case numbers below are that experiment's):
   5. the guide's two changes;
   6. the template tests above.
 
-## Open questions
+## Resolved questions
 
-1. **Hooks and a constant, or a slimmer seeded test?** Options: (a) as decided: `EXIT_USAGE`, plus the
-   `stdlib_cli_main` and `stdlib_cli_run` fixtures looked up by name; (b) seed only `--version` and
-   `--help`, and leave the usage code and the run alone to the project and to CI's smoke step.
-   *Recommendation: (a).* It keeps the usage check and the shebang run wherever a program can meet them.
-   It costs rootctl three short additions it already has the parts for (`real_popen`, its fake journal,
-   `EXIT_BAD_ARGUMENTS`), and passfill one.
-2. **Seed the file on copy only, or on every update as now?** Options: (a) copy only, as `test_hello.py`
-   is; (b) every update (today: a deleted file comes back each time). *Recommendation: (a).* Migrating
-   projects arrive with tests of their own, and a deletion should last. A new project still gets the file.
-3. **The constant's name, and whether the skeleton declares it.** Options: (a) `EXIT_USAGE`, declared in
-   the skeleton as `EXIT_USAGE = 2`; (b) `EXIT_USAGE`, read with a default but not declared; (c) another
-   name (`USAGE_EXIT_CODE`). *Recommendation: (a).* Whoever replaces the parser sees the constant beside
-   it, and `EXIT_` matches the names rootctl already uses (`EXIT_OK`, `EXIT_BAD_ARGUMENTS`).
-4. **Should CI check `EXIT_USAGE`** (for instance in `check-stdlib.py`: an `int` from 2 to 125)?
-   Options: (a) no; (b) yes. *Recommendation: (a).* The seeded test is the check wherever the file is
-   kept. Another rule in `check-stdlib.py` is one more contract on project code, for a constant only that
-   test reads.
-5. **Does `kind: cli` (and `service`) keep "one line, exit 2"?** Options: (a) yes, unchanged; (b) widen it
-   to "the program's `EXIT_USAGE`" for every kind. *Recommendation: (a).* Typer fixes the code at 2 for
-   those kinds, and no project has asked for another.
-6. **Release type.** Options: (a) `fix:`, a patch; (b) `feat:`, a minor release. *Recommendation: (a).*
-   Nothing breaks and nothing new is asked: it repairs a seeded file that didn't fit real programs.
+Approved by the brain coordinator for Stephen, 2026-11-04, with each open question answered as recommended.
+
+1. **Hooks and a constant, or a slimmer seeded test?** Hooks and a constant: `EXIT_USAGE`, plus the
+   `stdlib_cli_main` and `stdlib_cli_run` fixtures looked up by name. It keeps the usage check and the
+   shebang run wherever a program can meet them, at three short additions for rootctl and one for passfill.
+2. **Seed the file on copy only, or on every update as now?** Copy only, as `test_hello.py` is. Migrating
+   projects arrive with tests of their own, and a deletion should last; a new project still gets the file.
+3. **The constant's name, and whether the skeleton declares it.** `EXIT_USAGE`, declared in the skeleton as
+   `EXIT_USAGE = 2`. Whoever replaces the parser sees the constant beside it, and `EXIT_` matches the names
+   rootctl already uses.
+4. **Should CI check `EXIT_USAGE`?** No. The seeded test is the check wherever the file is kept; another
+   rule in `check-stdlib.py` would be one more contract on project code, for a constant only that test reads.
+5. **Does `kind: cli` (and `service`) keep "one line, exit 2"?** Yes, unchanged. Typer fixes the code at 2
+   for those kinds, and no project has asked for another.
+6. **Release type.** `fix:`, a patch release. Nothing breaks and nothing new is asked: it repairs a seeded
+   file that didn't fit real programs.
