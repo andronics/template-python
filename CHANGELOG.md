@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.1](https://github.com/andronics/template-python/compare/v2.5.0...v2.5.1) (2026-11-04)
+
+
+### 🐛 Bug Fixes
+
+* **stdlib-cli:** fit programs with their own parser and version line ([#61](https://github.com/andronics/template-python/issues/61)) ([993db42](https://github.com/andronics/template-python/commit/993db423f5dc2eb6a4a77839731242212a28e3cc))
+
 ## [2.5.0](https://github.com/andronics/template-python/compare/v2.4.6...v2.5.0) (2026-11-04)
 
 
