@@ -15,6 +15,7 @@ import os
 import re
 import shutil
 import subprocess
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -355,7 +356,47 @@ def test_base_update_then_overlay_update(base_src: Path, python_src: Path, tmp_p
     assert checks(commit(project)).returncode == 0
 
 
-FAKE_GH = """#!/bin/sh
+# Outside the Basic Multilingual Plane (💡), CJK, a quote and a backslash: `tojson` wrote the emoji
+# as a surrogate pair, which YAML reads back as two characters and TOML rejects.
+UNICODE = 'Ideas 💡 in 漢字, with a "quote" and a back\\slash'
+
+
+def test_unicode_description(base_src: Path, python_src: Path, tmp_path: Path) -> None:
+    """Any Unicode in base's description renders: the recorded base answers match base's file (no
+    "stale" error), pyproject.toml holds it verbatim, and the project passes its Definition of done."""
+    project = render(base_src, python_src, tmp_path / "demo", base={"description": UNICODE}, kind="cli")
+    recorded = yaml.safe_load((project / ".copier-answers.stack-python.yml").read_text())["base_answers"]
+    assert recorded["description"] == UNICODE
+    assert tomllib.loads((project / "pyproject.toml").read_text())["project"]["description"] == UNICODE
+    result = checks(project)
+    assert result.returncode == 0, result.stdout + result.stderr
+    for cmd in DOD:
+        result = run(project, *cmd)
+        assert result.returncode == 0, f"{' '.join(cmd)}:\n{result.stdout}\n{result.stderr}"
+
+
+def description_of(length: int) -> str:
+    """Words of a sentence, cut to exactly `length` characters (ending on a letter)."""
+    words = "Boundary description words that wrap at the docstring edge".split()
+    text = " ".join(words * (length // len(" ".join(words)) + 1))[:length]
+    return text[:-1] + "x" if text.endswith(" ") else text
+
+
+@pytest.mark.parametrize("length", [94, 95, 96, 120])
+def test_description_length(length: int, base_src: Path, python_src: Path, tmp_path: Path) -> None:
+    """The package docstring and the stdlib-cli program's wrap the description at 94: with its six
+    quote characters, a one-line docstring stays within ruff's 100 (E501) at any length."""
+    description = description_of(length)
+    assert len(description) == length
+    project = render(base_src, python_src, tmp_path / "demo", base={"description": description}, kind="stdlib-cli")
+    assert description.split()[0] in (project / "src/demo/__init__.py").read_text()
+    assert description.split()[0] in (project / "src/demo/demo.py").read_text()
+    for cmd in [("uv", "run", "ruff", "check"), ("uv", "run", "ruff", "format", "--check")]:
+        result = run(project, *cmd)
+        assert result.returncode == 0, f"{' '.join(cmd)}:\n{result.stdout}\n{result.stderr}"
+
+
+FAKE_GH ="""#!/bin/sh
 # gh pr view prints the body in $FAKE_BODY; gh pr edit records its arguments and stdin in $FAKE_EDIT.
 case "$1 $2" in
   "pr view") cat "$FAKE_BODY" ;;
