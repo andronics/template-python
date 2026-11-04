@@ -171,6 +171,34 @@ def test_fills_every_slot_and_prefixes_its_files(project: Path) -> None:
         assert all(re.match(r"\d\d-(python|container)", n) for n in names), names
 
 
+# What GitHub's git answers when a repository's wiki has no first page yet, and when the network fails.
+NO_WIKI = "remote: Repository not found.\nfatal: repository 'https://github.com/o/r.wiki.git/' not found"
+NO_NETWORK = "fatal: unable to access 'https://github.com/o/r.wiki.git/': Could not resolve host: github.com"
+
+
+@pytest.mark.parametrize(("stderr", "code", "annotation"), [(NO_WIKI, 0, "::notice::"), (NO_NETWORK, 1, "::error::")],
+                         ids=["no-wiki", "no-network"])  # fmt: skip
+def test_wiki_publish_skips_only_a_missing_wiki(project: Path, tmp_path: Path, stderr: str, code: int,
+                                                annotation: str) -> None:  # fmt: skip
+    """A repository that never created its wiki skips the publish with a notice, not a red main;
+    any other failure to reach the wiki repository (auth, network) still fails. The step's shell
+    runs as Actions runs it, against a git on PATH that fails the way GitHub's does."""
+    steps = yaml.safe_load((project / ".github/workflows/python-wiki.yml").read_text())["jobs"]["publish"]["steps"]
+    script = next(s["run"] for s in steps if s.get("name", "").startswith("Mirror docs/wiki/"))
+    fake = tmp_path / "bin"
+    fake.mkdir()
+    (fake / "git").write_text(f"#!/bin/sh\ncat >&2 <<'EOF'\n{stderr}\nEOF\nexit 128\n")
+    (fake / "git").chmod(0o755)
+    (tmp_path / "step.sh").write_text(script)
+    env = {"PATH": f"{fake}:{os.environ['PATH']}", "TOKEN": "t", "GITHUB_REPOSITORY": "o/r",
+           "RUNNER_TEMP": str(tmp_path), "GITHUB_WORKSPACE": str(project)}  # fmt: skip
+    result = subprocess.run(["bash", "--noprofile", "--norc", "-eo", "pipefail", str(tmp_path / "step.sh")],
+                            capture_output=True, text=True, env=env)  # fmt: skip
+    assert result.returncode == code, result.stdout + result.stderr
+    assert annotation in result.stdout, result.stdout
+    assert not (tmp_path / "wiki").exists()
+
+
 def test_every_template_file_is_marked(project: Path) -> None:
     """Every workflow and script names its owner near its top, so base's contract can check it."""
     for path in [*(project / ".github/workflows").glob("*.yml"), *(p for p in (project / "scripts").rglob("*")
