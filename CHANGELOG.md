@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.6.2](https://github.com/andronics/template-python/compare/v2.6.1...v2.6.2) (2026-11-04)
+
+
+### 🐛 Bug Fixes
+
+* **release:** don't parse an empty release-please output ([#71](https://github.com/andronics/template-python/issues/71)) ([081456d](https://github.com/andronics/template-python/commit/081456d1c1f02e779519a7a032666d40b075adb4))
+
 ## [2.6.1](https://github.com/andronics/template-python/compare/v2.6.0...v2.6.1) (2026-11-04)
 
 
