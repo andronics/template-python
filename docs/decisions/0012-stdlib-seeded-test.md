@@ -144,7 +144,7 @@ Python 3.13; the case numbers below are that experiment's):
   from a fresh render and adds the overrides above; that is optional. A project that kept the v2.5.x file
   keeps it unchanged (it passed there), and an update stops re-adding it once deleted.
 - **New projects** get the new file. Its defaults behave exactly as today's for the argparse skeleton.
-- **0011** is partly superseded, if this is approved: its seeded-test row ("an unknown argument exits 2")
+- **0011** is partly superseded: its seeded-test row ("an unknown argument exits 2")
   and the stack.md Errors line it lists for `stdlib-cli`. Everything else in it stands. It carries a
   pointer line to this record.
 - **Release:** `fix:` in template-python, a patch release. No project breaks and nothing new is asked;

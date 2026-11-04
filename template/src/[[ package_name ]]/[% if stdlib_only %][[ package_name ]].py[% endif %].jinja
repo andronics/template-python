@@ -22,6 +22,9 @@ from collections.abc import Sequence
 # A literal: an installed single file has no package metadata. release-please bumps it.
 __version__ = "0.0.0"  # x-release-please-version
 
+# The code a usage error exits with; tests/unit/test_[[ package_name ]].py reads it.
+EXIT_USAGE = 2  # argparse's code; a parser of the project's own names its own here
+
 
 def build_parser() -> argparse.ArgumentParser:
     # allow_abbrev=False: `--ver` is an error, not a silent `--version`. A usage error exits 2.

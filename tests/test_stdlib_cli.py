@@ -7,9 +7,11 @@ scripts/check-stdlib.py); these tests pin what is particular to it.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import sys
+import textwrap
 import tomllib
 from collections.abc import Callable
 from pathlib import Path
@@ -17,7 +19,7 @@ from pathlib import Path
 import pytest
 import yaml
 from conftest import render
-from stacking import checks, commit, sh
+from stacking import ROOT, checks, commit, sh
 from test_python import run, update
 
 STDLIB = pytest.mark.parametrize("variant", ["stdlib-cli"], indirect=True)
@@ -36,6 +38,8 @@ def test_renders_the_program_and_none_of_typer_or_interpose(project: Path) -> No
         assert (project / path).is_file(), path
     assert (project / PROGRAM).read_text().startswith("#!/usr/bin/python3 -IS\n")
     assert '__version__ = "0.0.0"  # x-release-please-version\n' in (project / PROGRAM).read_text()
+    assert "\nEXIT_USAGE = 2  # argparse's code; a parser of the project's own names its own here\n" in (
+        project / PROGRAM).read_text()  # fmt: skip
     # No interpose, Typer or PyYAML anywhere they would be installed, imported or documented.
     looked = [project / p for p in ("pyproject.toml", "uv.lock", ".agents/stack.md", ".github/dependabot.yml")]
     looked += [p for d in ("src", "tests", "scripts", "docs/wiki") for p in (project / d).rglob("*") if p.is_file()]
@@ -122,6 +126,7 @@ def test_template_owned_files(project: Path) -> None:
     stack = (project / ".agents/stack.md").read_text()
     assert "`uv run scripts/check-stdlib.py`" in stack and "**Standard library only:**" in stack
     assert "config.SETTINGS" not in stack and "typer" not in stack.lower()
+    assert "a usage error is one line and exits with `EXIT_USAGE` (2 unless" in stack and "exit 2" not in stack
     release = (project / "docs/wiki/Release-Process.md").read_text()
     assert "`extra-files`" in release and "**interpose**" not in release
     assert "Bash(uv run demo:*)" in json.loads((project / ".claude/settings.json").read_text())["permissions"]["allow"]
@@ -173,6 +178,105 @@ def test_seeded_tests_hold_for_a_hand_parser(project: Path, tmp_path: Path) -> N
     assert "delete this file along with `hello`" in (project / "tests/unit/test_hello.py").read_text()
 
 
+def guide_example(fixture: str) -> str:
+    """docs/migrating/stdlib-cli.md's example of a conftest's `fixture`, so the guide's code is tested."""
+    guide = (ROOT / "docs/migrating/stdlib-cli.md").read_text()
+    blocks = [textwrap.dedent(b) for b in re.findall(r"```python\n(.*?)\n *```", guide, re.DOTALL)]
+    found = [b for b in blocks if f"def {fixture}(" in b]
+    assert len(found) == 1, f"the guide shows {fixture} {len(found)} times"
+    return found[0] + "\n"
+
+
+# A conftest guard, as andronics/rootctl's and passfill's: no test runs a process.
+GUARD = """
+import subprocess
+from collections.abc import Callable
+from pathlib import Path
+
+REAL_RUN = subprocess.run
+
+
+@pytest.fixture(autouse=True)
+def no_processes(monkeypatch: pytest.MonkeyPatch) -> None:
+    def refuse(*args: object, **kwargs: object) -> None:
+        raise AssertionError("refused: a test ran a process")
+
+    for name in ("run", "Popen", "call", "check_call", "check_output"):
+        monkeypatch.setattr(subprocess, name, refuse)
+
+"""
+# A run built on the `run` saved before the guard: it still meets the guard (decision 0012).
+RUN_ON_SAVED_RUN = """
+@pytest.fixture
+def stdlib_cli_run() -> Callable[[list[str], Path], subprocess.CompletedProcess[str]]:
+    return lambda argv, cwd: REAL_RUN(argv, cwd=cwd, capture_output=True, text=True, check=False)
+"""
+# A main that needs a journal it must be given in tests, as rootctl's: without one it exits 4
+# before it parses anything, because the conftest points the real one at a path that doesn't exist.
+NEEDS_A_JOURNAL = [
+    ("import sys\n", "import os\nimport sys\n"),
+    ("def main(argv: Sequence[str] | None = None) -> int:\n",
+     ('JOURNAL = "/dev/null"\n\n\ndef main(argv: Sequence[str] | None = None, *, journal: str | None = None) -> int:\n'
+      '    if not os.path.exists(journal or JOURNAL):\n        return 4\n')),
+]  # fmt: skip
+JOURNAL = """
+from collections.abc import Callable
+from pathlib import Path
+
+from demo import demo as program
+from demo.demo import main
+
+
+@pytest.fixture(autouse=True)
+def no_real_journal(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(program, "JOURNAL", "/no/such/journal.sock")
+
+
+def FakeJournal(path: Path) -> str:
+    path.touch()
+    return str(path)
+
+"""
+# Each case: the program file (None: the skeleton's), what the conftest gains, and pytest's summary.
+SEEDED: dict[str, tuple[str | None, str, str]] = {
+    "the skeleton": (None, "", "4 passed"),
+    "a hand parser exiting 3, declared": (
+        HAND_PARSER.replace("    return 2\n", "    return 3\n").replace("USAGE = ", "EXIT_USAGE = 3\nUSAGE = "), "",
+        "4 passed"),
+    "a hand parser exiting 3, undeclared": (HAND_PARSER.replace("    return 2\n", "    return 3\n"), "",
+                                            "1 failed, 3 passed"),
+    "a guard, no stdlib_cli_run": (None, GUARD, "1 failed, 3 passed"),
+    "a guard, stdlib_cli_run on the saved Popen": (None, GUARD + "GUIDE:stdlib_cli_run", "4 passed"),
+    "a guard, stdlib_cli_run on the saved run": (None, GUARD + RUN_ON_SAVED_RUN, "1 failed, 3 passed"),
+    "a journal, no stdlib_cli_main": ("JOURNAL", JOURNAL, "3 failed, 1 passed"),
+    "a journal, stdlib_cli_main": ("JOURNAL", JOURNAL + "GUIDE:stdlib_cli_main", "4 passed"),
+}  # fmt: skip
+
+
+@STDLIB
+@pytest.mark.parametrize("case", SEEDED)
+def test_seeded_test_fits_the_program(case: str, project: Path, tmp_path: Path) -> None:
+    """tests/unit/test_demo.py (decision 0012): the usage code is the program's EXIT_USAGE (2 if
+    undeclared), and a conftest's `stdlib_cli_main` and `stdlib_cli_run`, as the migration guide
+    shows them, are used in place of the file's defaults; without them it runs as before."""
+    program, extra, summary = SEEDED[case]
+    dst = tmp_path / "p"
+    shutil.copytree(project, dst, symlinks=True, ignore=shutil.ignore_patterns(".git", ".venv"))
+    if program == "JOURNAL":
+        for old, new in NEEDS_A_JOURNAL:
+            edit(PROGRAM, old, new)(dst)
+    elif program is not None:
+        (dst / PROGRAM).write_text(program)
+    for fixture in ("stdlib_cli_run", "stdlib_cli_main"):
+        extra = extra.replace(f"GUIDE:{fixture}", guide_example(fixture))
+    append("tests/conftest.py", extra)(dst)
+    result = run(dst, "uv", "run", "pytest", "tests/unit/test_demo.py", "--no-cov", "-p", "no:cacheprovider")
+    assert re.search(rf"^(=+ )?{re.escape(summary)} in ", result.stdout, re.MULTILINE), result.stdout + result.stderr
+    if "failed" in summary and "journal" not in case:
+        failed = "test_an_unknown_option" if "parser" in case else "test_runs_alone_through_its_shebang"
+        assert f"FAILED tests/unit/test_demo.py::{failed}" in result.stdout, result.stdout
+
+
 def test_update_from_cli_keeps_the_projects_tests(base_src: Path, python_src: Path, tmp_path: Path) -> None:
     """`copier update --data kind=stdlib-cli` on a cli project: a project-owned file the new kind
     doesn't render is deleted, edits and all, without a conflict. stdlib-cli renders a seeded
@@ -193,20 +297,37 @@ def test_update_from_cli_keeps_the_projects_tests(base_src: Path, python_src: Pa
     assert deleted == ["contrib/demo.example.yaml", "src/demo/cli.py", "src/demo/config.py",
                        "tests/unit/test_cli.py", "tests/unit/test_config.py"], status  # fmt: skip
     assert "tests/conftest.py" not in "\n".join(status)
-    # The generic program test is added; the skeleton's `hello` test is for new projects only.
-    assert "?? tests/unit/test_demo.py" in status and not (project / "tests/unit/test_hello.py").exists()
+    # The seeded tests are for new projects only (decision 0012): the project brings its own.
+    assert not (project / "tests/unit/test_demo.py").exists() and not (project / "tests/unit/test_hello.py").exists()
 
 
-def test_update_keeps_the_example_test(base_src: Path, python_src: Path, tmp_path: Path) -> None:
-    """tests/unit/test_hello.py is rendered on copy only (`_exclude` on update): an update leaves a
-    new project's copy, edits and all."""
+SEEDED_ON_COPY = ["tests/unit/test_hello.py", "tests/unit/test_demo.py"]
+
+
+def test_update_keeps_the_seeded_tests(base_src: Path, python_src: Path, tmp_path: Path) -> None:
+    """tests/unit/test_hello.py and test_demo.py are rendered on copy only (`_exclude` on update,
+    decision 0012): an update leaves a new project's copies, edits and all."""
     project = render(base_src, python_src, tmp_path / "p", kind="stdlib-cli")
-    with (project / "tests/unit/test_hello.py").open("a") as f:
-        f.write("# a project edit\n")
+    for path in SEEDED_ON_COPY:
+        with (project / path).open("a") as f:
+            f.write("# a project edit\n")
     commit(project)
     update(project, "v1.0.0")
     assert sh("git", "status", "--porcelain", cwd=project) == ""
-    assert "# a project edit\n" in (project / "tests/unit/test_hello.py").read_text()
+    for path in SEEDED_ON_COPY:
+        assert "# a project edit\n" in (project / path).read_text(), path
+
+
+def test_update_doesnt_bring_back_a_deleted_seeded_test(base_src: Path, python_src: Path, tmp_path: Path) -> None:
+    """A project that deletes a seeded test keeps it deleted: `tests/**` is `_skip_if_exists`, which
+    re-adds a missing file, so only `_exclude` keeps it out (decision 0012)."""
+    project = render(base_src, python_src, tmp_path / "p", kind="stdlib-cli")
+    sh("git", "rm", "-q", *SEEDED_ON_COPY, cwd=project)
+    commit(project)
+    update(project, "v1.0.0")
+    assert sh("git", "status", "--porcelain", cwd=project) == ""
+    for path in SEEDED_ON_COPY:
+        assert not (project / path).exists(), path
 
 
 def edit(path: str, old: str, new: str) -> Callable[[Path], None]:
