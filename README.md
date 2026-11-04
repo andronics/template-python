@@ -31,7 +31,7 @@ base's answers. It needs template-base `v2.0.0` or later.
 - **Release PRs and CI:** PRs opened with the default `GITHUB_TOKEN` don't trigger CI. The organisation's
   release GitHub App (`RELEASE_APP_CLIENT_ID` variable, `RELEASE_APP_PRIVATE_KEY` secret) fixes that.
 - **The wiki:** the GitHub wiki exists once its first page is created in the web UI; `python-wiki.yml`
-  publishes `docs/wiki/` there from then on.
+  publishes `docs/wiki/` there from then on. Until then its publish job skips with a notice.
 
 ## Where this came from
 
