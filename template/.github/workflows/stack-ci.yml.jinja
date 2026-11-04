@@ -64,11 +64,15 @@ jobs:
 [% endif %]
 [% if stdlib_only %]
           # The program file alone, as `python3 -IS` runs it: no virtualenv, no sibling module.
+          # Its --version's first line starts with "<project> X.Y.Z"; a tail after a space is the program's.
           tmp=$(mktemp -d)
           cp src/[[ package_name ]]/[[ package_name ]].py "$tmp/"
           want="[[ project_name ]] $(sed -n 's/^version = "\([^"]*\)"/\1/p' pyproject.toml | head -n 1)"
-          got=$(uv run python -IS "$tmp/[[ package_name ]].py" --version)
-          [ "$got" = "$want" ] || { echo "::error::python -IS [[ package_name ]].py --version printed '$got', not '$want'"; exit 1; }
+          got=$(uv run python -IS "$tmp/[[ package_name ]].py" --version | head -n 1)
+          case "$got" in
+            "$want" | "$want "*) ;;
+            *) echo "::error::python -IS [[ package_name ]].py --version printed '$got': its first line must be '$want', alone or followed by a space"; exit 1 ;;
+          esac
 [% endif %]
 
       - name: Generated wiki sections[% if kind == 'service' %] and docs/openapi.json[% endif %] are current

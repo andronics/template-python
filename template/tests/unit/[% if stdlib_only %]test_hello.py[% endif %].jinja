@@ -1,0 +1,10 @@
+"""The skeleton's example command: delete this file along with `hello`."""
+
+import pytest
+
+from [[ package_name ]].[[ package_name ]] import main
+
+
+def test_hello(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["hello", "tests"]) == 0
+    assert capsys.readouterr().out == "hello, tests\n"

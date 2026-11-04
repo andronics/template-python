@@ -21,7 +21,8 @@ template-owned file that changes. In short, after the update:
 - `release-please-config.json` lists `src/<package>/<package>.py` in `extra-files`, and
   `scripts/checks.d/20-python.sh` checks its literal `__version__` against `pyproject.toml`;
 - `scripts/check-stdlib.py` is new, and `stack-ci.yml` runs it on every supported Python, and runs the
-  program file alone with `python -IS`;
+  program file alone with `python -IS --version`: the first line must start with `<project> X.Y.Z`, then
+  end of line or a space, so a tail of the program's own (`rootctl 0.1.0 (python 3.13.15, ...)`) passes;
 - `scripts/gen-wiki.py` has no `settings` or `cli` block; `.agents/stack.md`, `dependabot.yml`,
   `docs/wiki/.standard.toml` and `docs/wiki/Release-Process.md` describe the new shape.
 
@@ -43,9 +44,13 @@ Resolve each conflict:
   over a plain string entry.
 - **`pyproject.toml`**: keep the template's comment on `dependencies = []`; keep the project's own
   additions (a coverage floor above 80, extra ruff rules) and drop what was only there for the old CLI.
-- The files the template no longer renders (`cli.py`, `config.py`, `tests/conftest.py`,
-  `tests/unit/test_cli.py`, `tests/unit/test_config.py`, `contrib/<project>.example.yaml`): delete them if
-  the project still has them and step 3 replaces what they did. A deleted one stays deleted.
+- The files the template no longer renders (`src/<package>/cli.py`, `src/<package>/config.py`,
+  `tests/unit/test_cli.py`, `tests/unit/test_config.py`, `contrib/<project>.example.yaml`): the update
+  deletes them, project edits and all, without a conflict. If one held something step 3 needs, take it
+  back from the last commit (`git show HEAD:<path>`) and move it into the program file or a test of the
+  project's own; otherwise leave it deleted.
+- `tests/conftest.py` is kept as it is: `stdlib-cli` seeds one too, so the project's own fixtures survive.
+  Drop what imports `<package>.config`, which is gone.
 
 Then `sh scripts/post-update.sh` (it refreshes `uv.lock`: interpose, Typer and PyYAML leave it).
 
@@ -59,8 +64,9 @@ Then `sh scripts/post-update.sh` (it refreshes `uv.lock`: interpose, Typer and P
 - It imports only the standard library and nothing from `<package>`.
 - `__version__ = "X.Y.Z"  # x-release-please-version`, with `pyproject.toml`'s current version: a literal,
   since an installed single file has no package metadata.
-- `main(argv=None) -> int`. The template's skeleton uses argparse with `allow_abbrev=False`; a hand
-  parser for a fixed grammar is fine. Write output with `sys.stdout.write` and `sys.stderr.write`, and
+- `main(argv=None) -> int`. The template's skeleton uses argparse with `allow_abbrev=False`; a project
+  with its own parser keeps it (nothing template-owned imports the parser).
+  `--version`'s first line starts with `<project> X.Y.Z`; the program may add its own facts after a space. Write output with `sys.stdout.write` and `sys.stderr.write`, and
   exit 2 on a usage error.
 - Configuration: arguments first. If it needs more, environment variables named `<PREFIX><KEY>`, read in
   one place, and a file, if any, is TOML read with `tomllib`; write the precedence on the wiki's
@@ -73,9 +79,11 @@ template-python with `kind=stdlib-cli` into a scratch folder and read its `src/`
 
 ## 4. Tests
 
-- `tests/unit/test_<package>.py`: `--version` prints `<project> X.Y.Z`, `--help`, an unknown argument exits 2,
-  and the file copied alone into `tmp_path` runs with its shebang's flags. Add the skeleton's if the
-  project has none.
+- `tests/unit/test_<package>.py`: `--version`'s first line starts with `<project> X.Y.Z` (alone or
+  followed by a space), `--help` exits 0, an unknown option exits 2, and the file copied alone into
+  `tmp_path` runs with its shebang's flags. The skeleton's tests only that, through `main` and
+  `__version__`, so it holds for any parser: add it if the project has none. Test the commands in files
+  of their own.
 - `tests/unit/test_version.py`: drop the `0+unknown` alternative; the literal is always a real version.
 - A test of the project's own that the program imports only the standard library may stay, or go:
   `scripts/check-stdlib.py` checks the same rule.
@@ -111,7 +119,8 @@ resolved by hand.
 `src/rootctl/rootctl.py` already is the program file, with the literal and its marker, and `cli.py` and
 `config.py` are already deleted, so the update keeps both as they are. It drops the mypy override and the
 `known-first-party` block (step 5), and the sentence in its design record that its record wins over
-`stack.md`. Its own stdlib-only import test may stay. The two one-time merges are `release-please-config.json`'s
+`stack.md`. Its `--version` tail (`rootctl 0.1.0 (python 3.13.15, isolated=1, no_site=1)`), which its
+installer reads, stays: CI's check matches the start of the line. Its `tests/conftest.py` stays. Its own stdlib-only import test may stay. The two one-time merges are `release-please-config.json`'s
 `extra-files` (take the template's object) and the comment on `dependencies = []`. It keeps its hand
 parser, its coverage floor of 95, `install/` and its project-owned `release-assets.yml`. The new
 `tests/unit/test_rootctl.py` is added only if absent: keep or delete it.

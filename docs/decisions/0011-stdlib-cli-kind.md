@@ -117,7 +117,7 @@ configuration: rootctl documents its allowlist there), with no generated `settin
   3. the program file imports from `<pkg>` at all, relatively or absolutely;
   4. the program file's first line isn't a shebang whose flags include `-I` and `-S`.
 - **The `-IS` run**, in the smoke-test step: copy the program file alone into a temporary folder and run
-  `uv run python -IS "$tmp/<pkg>.py" --version`; the output must be `<project> <pyproject version>`. This
+  `uv run python -IS "$tmp/<pkg>.py" --version`; the output starts with `<project> <pyproject version>`. This
   catches what the static check can't see: code that only works from inside `src/` or the virtualenv, and
   a standard-library module the interpreter doesn't actually ship.
 - **Dev tools stay dev dependencies:** pytest, pytest-cov, ruff and mypy in `[dependency-groups] dev`;
@@ -238,3 +238,9 @@ Approved by the brain coordinator for Stephen, 2026-11-04, with each open questi
    second project needs it.
 6. **How strict is the shebang check?** It requires `-I` and `-S` in the first line; the interpreter path
    is the project's (a non-Arch host, `/usr/local/bin/python3`). The kind's promise is `-IS`, not a path.
+
+## Change log
+
+| Date | Change |
+|---|---|
+| 2026-11-04 | The `-IS --version` smoke check matches a prefix: the first line starts with `<project> <version>`, then end of line or a space, so a program may add facts after them (approved by the brain coordinator for Stephen) |

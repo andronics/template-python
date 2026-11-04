@@ -1,4 +1,6 @@
-"""The program, in-process and as `python3 -IS` runs it: the file alone (decision 0011)."""
+"""What every stdlib-cli program does, whatever its parser (decision 0011): `--version`, `--help`,
+a usage error, and the file run alone as `python3 -IS` runs it. Test the program's own commands
+in files of their own."""
 
 import os
 import shlex
@@ -15,32 +17,32 @@ from [[ package_name ]].[[ package_name ]] import __version__, main
 PROGRAM = Path(program.__file__)
 
 
+def exit_code(argv: list[str]) -> int:
+    """main(argv)'s exit status: its return value, or the SystemExit an argparse parser raises."""
+    try:
+        return main(argv)
+    except SystemExit as exit_:
+        return 0 if exit_.code is None else exit_.code if isinstance(exit_.code, int) else 1
+
+
+def assert_version_line(out: str) -> None:
+    """The first line is "<project> X.Y.Z", alone or followed by a space and the program's tail."""
+    want = f"[[ project_name ]] {__version__}"
+    first = out.split("\n", 1)[0]
+    assert first == want or first.startswith(f"{want} "), f"--version printed {first!r}"
+
+
 def test_version(capsys: pytest.CaptureFixture[str]) -> None:
-    with pytest.raises(SystemExit) as exit_:
-        main(["--version"])
-    assert exit_.value.code == 0
-    assert capsys.readouterr().out == f"[[ project_name ]] {__version__}\n"
+    assert exit_code(["--version"]) == 0
+    assert_version_line(capsys.readouterr().out)
 
 
-def test_help(capsys: pytest.CaptureFixture[str]) -> None:
-    with pytest.raises(SystemExit) as exit_:
-        main(["--help"])
-    assert exit_.value.code == 0
-    assert capsys.readouterr().out.startswith("usage: [[ project_name ]] ")
+def test_help() -> None:
+    assert exit_code(["--help"]) == 0
 
 
-@pytest.mark.parametrize("argv", (["--nope"], ["hello", "--nope"], ["--ver"]))
-def test_a_usage_error_exits_2(argv: list[str], capsys: pytest.CaptureFixture[str]) -> None:
-    # `--ver` too: allow_abbrev=False refuses an abbreviation instead of guessing.
-    with pytest.raises(SystemExit) as exit_:
-        main(argv)
-    assert exit_.value.code == 2
-    assert capsys.readouterr().err.startswith("usage: [[ project_name ]] ")
-
-
-def test_hello(capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(["hello", "tests"]) == 0
-    assert capsys.readouterr().out == "hello, tests\n"
+def test_an_unknown_option_exits_2() -> None:
+    assert exit_code(["--no-such-option"]) == 2
 
 
 def test_runs_alone_through_its_shebang(tmp_path: Path) -> None:
@@ -61,4 +63,4 @@ def test_runs_alone_through_its_shebang(tmp_path: Path) -> None:
         check=False,
     )
     assert result.returncode == 0, result.stderr
-    assert result.stdout == f"[[ project_name ]] {__version__}\n"
+    assert_version_line(result.stdout)
