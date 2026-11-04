@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.6.4](https://github.com/andronics/template-python/compare/v2.6.3...v2.6.4) (2026-11-04)
+
+
+### 🐛 Bug Fixes
+
+* skip the wiki publish when the repository has no wiki yet ([#75](https://github.com/andronics/template-python/issues/75)) ([24df78e](https://github.com/andronics/template-python/commit/24df78e9d62f8948c26d2baca5f5f3c17c6f0f98))
+
 ## [2.6.3](https://github.com/andronics/template-python/compare/v2.6.2...v2.6.3) (2026-11-04)
 
 
