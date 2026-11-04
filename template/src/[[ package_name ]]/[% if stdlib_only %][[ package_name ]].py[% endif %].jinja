@@ -1,0 +1,52 @@
+#!/usr/bin/python3 -IS
+[#! Escaped and wrapped as __init__.py's, so a long or quoted description passes ruff. !#]
+[% set doc = description | replace('\\', '\\\\') | replace('"', '\\"') | wordwrap(96, break_long_words=false, break_on_hyphens=false) %]
+[% if '\n' in doc %]
+"""[[ doc ]]
+"""
+[% else %]
+"""[[ doc ]]"""
+[% endif %]
+
+# The whole program (template-python decision 0011). It runs as `python3 -IS`, which reads
+# no PYTHON* variable, no site-packages and not this file's folder: so it imports only the
+# standard library, and nothing from its own package, and works as this one file copied
+# anywhere. scripts/check-stdlib.py checks both; CI runs the file alone with `python -IS`.
+
+from __future__ import annotations
+
+import argparse
+import sys
+from collections.abc import Sequence
+
+# A literal: an installed single file has no package metadata. release-please bumps it.
+__version__ = "0.0.0"  # x-release-please-version
+
+
+def build_parser() -> argparse.ArgumentParser:
+    # allow_abbrev=False: `--ver` is an error, not a silent `--version`. A usage error exits 2.
+    parser = argparse.ArgumentParser(
+        prog="[[ project_name ]]",
+        description=__doc__,
+        allow_abbrev=False,
+    )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    commands = parser.add_subparsers(dest="command", metavar="COMMAND", required=True)
+    hello = commands.add_parser(
+        "hello",
+        help="Print a greeting (an example: replace it).",
+        allow_abbrev=False,
+    )
+    hello.add_argument("name", nargs="?", default="world", help="who to greet")
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    if args.command == "hello":
+        sys.stdout.write(f"hello, {args.name}\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

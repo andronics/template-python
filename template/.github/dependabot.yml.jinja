@@ -19,7 +19,7 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: development
-[% if has_cli %]
+[% if has_cli and not stdlib_only %]
     # interpose is pinned to a git tag, which Dependabot can't update: it would look the name
     # up on PyPI instead. python-tag-check.yml bumps it (template-python decisions 0002, 0003).
     ignore:

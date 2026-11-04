@@ -1,5 +1,13 @@
 """`python -m [[ package_name ]]`: the same as the `[[ project_name ]]` command."""
 
+[% if stdlib_only %]
+import sys
+
+from [[ package_name ]].[[ package_name ]] import main
+
+sys.exit(main())
+[% else %]
 from [[ package_name ]].cli import main
 
 main()
+[% endif %]

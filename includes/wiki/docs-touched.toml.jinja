@@ -1,4 +1,6 @@
-[% if has_cli %]
+[% if stdlib_only %]
+  "src/*/[[ package_name ]].py",
+[% elif has_cli %]
   "src/*/config.py",
   "src/*/cli.py",
 [% endif %]

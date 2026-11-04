@@ -23,6 +23,7 @@ Changes a template update can't make, because the files are the project's (`src/
 | Change | For | Prompt |
 |---|---|---|
 | `config.py` on interpose's settings engine (decision [0003](../decisions/0003-interpose-config.md)) | `service` and `cli` projects made before it | [interpose-config.md](interpose-config.md) |
+| `kind: cli` to `kind: stdlib-cli`: standard library only, run as `python3 -IS` (decision [0011](../decisions/0011-stdlib-cli-kind.md)) | a `cli` project that must import nothing from PyPI (rootctl) | [stdlib-cli.md](stdlib-cli.md) |
 
 ## Porting a service to FastAPI
 

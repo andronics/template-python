@@ -14,7 +14,11 @@ A generated section sits between markers, and everything between them is replace
     ...
     <!-- generated:end settings -->
 
+[% if stdlib_only %]
+Blocks: none for stdlib-cli, whose CLI-Reference page is hand-written (decision 0011).
+[% else %]
 Blocks: settings (config.SETTINGS), cli (the Typer app), http-api (the OpenAPI schema).
+[% endif %]
 Write prose around the markers, never inside them.
 [% if kind == 'service' %]
 
@@ -34,7 +38,7 @@ import re
 import sys
 from collections.abc import Callable
 from pathlib import Path
-[% if has_cli %]
+[% if has_cli and not stdlib_only %]
 from typing import Any
 [% endif %]
 
@@ -42,7 +46,7 @@ WIKI = Path("docs/wiki")
 [% if kind == 'service' %]
 OPENAPI = Path("docs/openapi.json")
 [% endif %]
-[% if has_cli %]
+[% if has_cli and not stdlib_only %]
 
 
 def _cell(text: object) -> str:
@@ -133,7 +137,8 @@ def http_api() -> str:
 [% endif %]
 
 
-[% if has_cli %]
+[#! stdlib-cli: no blocks, as for a library; it imports nothing from the package (decision 0011). !#]
+[% if has_cli and not stdlib_only %]
 BLOCKS: dict[str, Callable[..., str]] = {
     "settings": settings,
     "cli": cli,

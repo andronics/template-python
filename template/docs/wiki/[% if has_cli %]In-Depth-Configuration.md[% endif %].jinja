@@ -1,6 +1,25 @@
 [% import 'includes/layer.jinja' as layer with context %]
 # In-Depth Configuration
 
+[% if stdlib_only %]
+## Where configuration comes from
+
+`[[ project_name ]]` takes its input from its arguments: see [CLI Reference](CLI-Reference). It has no settings engine and no config file of its own (template-python decision 0011).
+
+If it ever needs more, the rule is: environment variables named `[[ env_prefix ]]<KEY>`, read in one place; a file, if any, is TOML, read with `tomllib`; and the order in which they win is written here. A tool that runs as root takes nothing from its caller's environment unless it says so on this page.
+
+## Settings
+
+<!-- guidance: every input that isn't an argument (variables, files, built-in paths), with its default, or say there is none. -->
+
+## Secrets
+
+<!-- guidance: this project's secrets and where each comes from (a file it names, never an argument), or say there are none. -->
+
+## Examples
+
+<!-- guidance: two or three real-world invocations, each with a sentence on when you'd use it. -->
+[% else %]
 ## Where configuration comes from
 
 Every setting can be given in four places, and the first one that has it wins:
@@ -39,3 +58,4 @@ A secret setting is read from all four places, like any other, so nothing stops 
 A complete config file with every default is in [contrib/[[ project_name ]].example.yaml]([[ repo_url ]]/blob/main/contrib/[[ project_name ]].example.yaml).
 
 <!-- guidance: two or three real-world configurations, each with a sentence on when you'd use it. -->
+[% endif %]

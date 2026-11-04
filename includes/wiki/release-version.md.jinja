@@ -1,1 +1,5 @@
+[% if stdlib_only %]
+- The version lives in `pyproject.toml`, `.release-please-manifest.json` and the literal `__version__` in `src/[[ package_name ]]/[[ package_name ]].py` (marked `# x-release-please-version`; `release-please-config.json` lists the file in `extra-files`), since the program runs as one file with no package metadata. CI fails if the three disagree.
+[% else %]
 - The version lives in `pyproject.toml` and `.release-please-manifest.json`; `[[ package_name ]].__version__` reads the installed metadata. CI fails if the two files disagree.
+[% endif %]

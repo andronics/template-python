@@ -21,6 +21,16 @@
 docker run -d --name [[ project_name ]] -p 127.0.0.1:[[ port ]]:[[ port ]] [[ image ]]:latest
 curl http://127.0.0.1:[[ port ]][[ health_path ]]
 ```
+[% elif stdlib_only %]
+
+It needs only `python3`: copy the one file onto `PATH` as the command,
+
+```sh
+install -m 755 src/[[ package_name ]]/[[ package_name ]].py ~/.local/bin/[[ project_name ]]
+[[ project_name ]] --help
+```
+
+or install it with uv for development: `[[ layer.install_cli ]]`.
 [% elif has_cli %]
 
 ```sh
@@ -47,7 +57,7 @@ repository, reviewed with the code.
 
 - [Introduction]([[ repo_url ]]/wiki/Introduction): what it is and how it works
 [% if has_cli %]
-- [In-Depth Configuration]([[ repo_url ]]/wiki/In-Depth-Configuration): every setting
+- [In-Depth Configuration]([[ repo_url ]]/wiki/In-Depth-Configuration): [[ 'its input' if stdlib_only else 'every setting' ]]
 [% elif kind == 'library' %]
 - [API Reference]([[ repo_url ]]/wiki/API-Reference): the public API
 [% endif %]

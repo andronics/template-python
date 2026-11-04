@@ -49,12 +49,26 @@ jobs:
 
       - name: Tests (with coverage floor)
         run: uv run pytest
+[% if stdlib_only %]
+
+      # Standard library only (decision 0011), against this Python's sys.stdlib_module_names.
+      - name: Standard library only
+        run: uv run scripts/check-stdlib.py
+[% endif %]
 
       - name: Import and entry-point smoke test
         run: |
           uv run python -c "import [[ package_name ]]; print('[[ package_name ]]', [[ package_name ]].__version__)"
 [% if has_cli %]
           uv run [[ project_name ]] --help > /dev/null
+[% endif %]
+[% if stdlib_only %]
+          # The program file alone, as `python3 -IS` runs it: no virtualenv, no sibling module.
+          tmp=$(mktemp -d)
+          cp src/[[ package_name ]]/[[ package_name ]].py "$tmp/"
+          want="[[ project_name ]] $(sed -n 's/^version = "\([^"]*\)"/\1/p' pyproject.toml | head -n 1)"
+          got=$(uv run python -IS "$tmp/[[ package_name ]].py" --version)
+          [ "$got" = "$want" ] || { echo "::error::python -IS [[ package_name ]].py --version printed '$got', not '$want'"; exit 1; }
 [% endif %]
 
       - name: Generated wiki sections[% if kind == 'service' %] and docs/openapi.json[% endif %] are current

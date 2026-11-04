@@ -1,3 +1,7 @@
 - ruff (lint + format, line length 100) and mypy `--strict` decide formatting and typing. Don't argue with them in review.
 - Comments explain *why*. Logging goes through `logging`; only the CLI prints.
+[% if stdlib_only %]
+- Standard library only: no runtime dependency, and the program file imports nothing from its own package (`scripts/check-stdlib.py`).
+[% else %]
 - Settings go through `config.SETTINGS`. Secrets come from `_FILE`, and are never logged.
+[% endif %]

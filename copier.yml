@@ -166,6 +166,7 @@ kind:
     "service: long-running, HTTP API (FastAPI), health endpoints": service
     "cli: command-line tool (Typer)": cli
     "library: importable package only": library
+    "stdlib-cli: command-line tool, standard library only (argparse), runs as python3 -IS": stdlib-cli
   default: service
 
 python_version:
@@ -203,11 +204,13 @@ health_path:
   when: "[[ kind == 'service' ]]"
   validator: "[% if not health_path.startswith('/') %]Must start with /[% endif %]"
 
+# Never for stdlib-cli: an image brings its own interpreter, so standard library only buys
+# nothing there (decision 0011).
 container_image:
   type: bool
   help: Build a container image (a Dockerfile here; template-container adds its build and publish workflows)?
-  default: "[[ kind != 'library' ]]"
-  when: "[[ kind != 'library' ]]"
+  default: "[[ kind in ['service', 'cli'] ]]"
+  when: "[[ kind in ['service', 'cli'] ]]"
 
 image_extras:
   type: yaml
@@ -269,7 +272,8 @@ integration_extras:
   type: yaml
   help: Optional extras (pyproject's [project.optional-dependencies]) the integration job installs, for example [fuse], or ["*"] for all.
   default: "[]"
-  when: "[[ integration_ci ]]"
+  # A stdlib-cli project has no optional dependencies to install (decision 0011).
+  when: "[[ integration_ci and kind != 'stdlib-cli' ]]"
   validator: >-
     [% if integration_extras is string or integration_extras is not sequence %]
     A list of extra names: [fuse]
@@ -288,7 +292,14 @@ integration_extras:
 
 has_cli:
   type: bool
-  default: "[[ kind in ['service', 'cli'] ]]"
+  default: "[[ kind in ['service', 'cli', 'stdlib-cli'] ]]"
+  when: false
+
+# Standard library only (decision 0011): no Typer, no interpose, no runtime dependency. What is
+# Typer- or interpose-specific is gated on `has_cli and not stdlib_only`.
+stdlib_only:
+  type: bool
+  default: "[[ kind == 'stdlib-cli' ]]"
   when: false
 
 env_prefix:

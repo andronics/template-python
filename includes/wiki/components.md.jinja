@@ -1,5 +1,8 @@
 | `[[ package_name ]]/__init__.py` | Package version |
-[% if has_cli %]
+[% if stdlib_only %]
+| `[[ package_name ]]/[[ package_name ]].py` | The whole `[[ project_name ]]` program (argparse): standard library only, runs alone as `python3 -IS` |
+| `[[ package_name ]]/__main__.py` | `python -m [[ package_name ]]`, for development |
+[% elif has_cli %]
 | `[[ package_name ]]/config.py` | Settings and their precedence (`_FILE` > env > file > default) |
 | `[[ package_name ]]/cli.py` | The `[[ project_name ]]` command (Typer) |
 [% endif %]

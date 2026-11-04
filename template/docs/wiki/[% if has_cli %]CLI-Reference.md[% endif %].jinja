@@ -5,10 +5,28 @@
 
 ## Commands
 
+[% if stdlib_only %]
+Written by hand: the parser is the program's own (argparse in `src/[[ package_name ]]/[[ package_name ]].py`), so change this page with it.
+
+### `[[ project_name ]] --version`
+
+Print `[[ project_name ]] X.Y.Z`.
+
+### `[[ project_name ]] hello [NAME]`
+
+Print a greeting: the skeleton's example command.
+
+| Argument | Description |
+|---|---|
+| `NAME` | who to greet (default: world) |
+
+<!-- guidance: one ### heading per command, with its arguments and options, as `--help` shows them. Replace the example. -->
+[% else %]
 Generated from the code: don't edit, run `[[ layer.gen_wiki ]]`.
 
 <!-- generated:start cli -->
 <!-- generated:end cli -->
+[% endif %]
 
 ## Exit codes
 
@@ -16,6 +34,6 @@ Generated from the code: don't edit, run `[[ layer.gen_wiki ]]`.
 |---|---|
 | 0 | Success |
 | 1 | Failure while running |
-| 2 | Bad usage or invalid configuration |
+| 2 | Bad usage[% if not stdlib_only %] or invalid configuration[% endif %] |
 
 <!-- guidance: add project-specific exit codes, and worked examples of common invocations. -->

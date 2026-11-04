@@ -1,6 +1,6 @@
 ```sh
 uv run pytest                                            # unit tests, with an 80% coverage floor
-[% if has_cli %]
+[% if has_cli and not stdlib_only %]
 uv run pytest tests/unit/test_config.py -k env --no-cov  # a subset, no coverage floor
 [% else %]
 uv run pytest tests/unit/test_version.py --no-cov        # a subset, no coverage floor

@@ -2,7 +2,10 @@
 
 ## Diagnostics
 
-[% if has_cli %]
+[% if stdlib_only %]
+- **Version and usage:** `[[ project_name ]] --version`; `[[ project_name ]] <command> --help`.
+- **Run it as installed:** `python3 -IS $(command -v [[ project_name ]]) ...` runs exactly what the shebang runs, with no `PYTHON*` variable or site-packages.
+[% elif has_cli %]
 - **Effective configuration:** `[[ project_name ]] config` prints every setting and where it came from (default, file, env var). A secret shows only whether it is set (`******** (set)` or `(unset)`), never its value.
 - **More logging:** `[[ env_prefix ]]LOG_LEVEL=DEBUG`.
 [% endif %]
@@ -25,7 +28,7 @@
 ## Common problems
 
 <!-- guidance: one ### heading per symptom, in the user's words ("Exits with 'cannot read ..._FILE'"), then the cause and the fix. Add one whenever a bug report or a support question shows a new failure mode. -->
-[% if has_cli %]
+[% if has_cli and not stdlib_only %]
 
 ### `error: cannot read [[ env_prefix ]]..._FILE`
 

@@ -19,7 +19,14 @@ docker pull [[ image ]]:latest
 ```
 
 [% endif %]
-[% if has_cli %]
+[% if stdlib_only %]
+It needs only `python3`. Copy the one file onto `PATH` as the command, or install it with uv:
+
+```sh
+install -m 755 src/[[ package_name ]]/[[ package_name ]].py ~/.local/bin/[[ project_name ]]
+[[ layer.install_cli ]]
+```
+[% elif has_cli %]
 ```sh
 [[ layer.install_cli ]]
 ```
@@ -37,6 +44,11 @@ docker run -d --name [[ project_name ]] -p 127.0.0.1:[[ port ]]:[[ port ]] [[ im
 curl http://127.0.0.1:[[ port ]][[ health_path ]]      # {"status":"ok"}
 docker exec [[ project_name ]] [[ project_name ]] config   # the effective configuration
 ```
+[% elif stdlib_only %]
+```sh
+[[ project_name ]] --help
+[[ project_name ]] --version
+```
 [% elif has_cli %]
 ```sh
 [[ project_name ]] --help
@@ -53,7 +65,7 @@ docker exec [[ project_name ]] [[ project_name ]] config   # the effective confi
 ## Next steps
 
 [% if has_cli %]
-- [In-Depth Configuration](In-Depth-Configuration): every setting
+- [In-Depth Configuration](In-Depth-Configuration): [[ 'its input' if stdlib_only else 'every setting' ]]
 [% else %]
 - [API Reference](API-Reference): the public API
 [% endif %]

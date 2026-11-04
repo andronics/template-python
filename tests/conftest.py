@@ -43,6 +43,7 @@ MATRIX: dict[str, dict[str, object]] = {
     "cli-image": {"kind": "cli", "container_image": True, "image_extras": ["*"], "container": {}},
     "cli": {"kind": "cli", "container_image": False},
     "library": {"kind": "library", "integration_ci": True, "integration_extras": ["*"]},
+    "stdlib-cli": {"kind": "stdlib-cli", "integration_ci": True},
 }  # fmt: skip
 
 
