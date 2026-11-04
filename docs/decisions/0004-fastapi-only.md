@@ -2,7 +2,7 @@
 
 <!-- Add a line for this record to the index in docs/decisions/README.md (CI checks). -->
 
-Status: Accepted (2026-11-02)
+Status: Approved (2026-11-02)
 Date: 2026-11-02
 Authors: Stephen Cox
 
