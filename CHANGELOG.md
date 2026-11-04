@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.6](https://github.com/andronics/template-python/compare/v2.4.5...v2.4.6) (2026-11-04)
+
+
+### 📚 Documentation
+
+* **decisions:** say Approved, not Accepted ([#55](https://github.com/andronics/template-python/issues/55)) ([d94d8b0](https://github.com/andronics/template-python/commit/d94d8b024832cf7a9806f7e00e924d0e33a4cea0))
+
 ## [2.4.5](https://github.com/andronics/template-python/compare/v2.4.4...v2.4.5) (2026-11-03)
 
 
