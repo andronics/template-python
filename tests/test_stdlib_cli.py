@@ -16,12 +16,13 @@ from pathlib import Path
 
 import pytest
 import yaml
-from stacking import checks, commit
-from test_python import run
+from conftest import render
+from stacking import checks, commit, sh
+from test_python import run, update
 
 STDLIB = pytest.mark.parametrize("variant", ["stdlib-cli"], indirect=True)
 PROGRAM = "src/demo/demo.py"
-NOT_RENDERED = ["src/demo/cli.py", "src/demo/config.py", "tests/conftest.py", "tests/unit/test_cli.py",
+NOT_RENDERED = ["src/demo/cli.py", "src/demo/config.py", "tests/unit/test_cli.py",
                 "tests/unit/test_config.py", "contrib/demo.example.yaml", "Dockerfile", ".dockerignore",
                 "docker", "contrib/systemd", "docs/wiki/Deployment.md", "docs/openapi.json"]  # fmt: skip
 
@@ -30,8 +31,8 @@ NOT_RENDERED = ["src/demo/cli.py", "src/demo/config.py", "tests/conftest.py", "t
 def test_renders_the_program_and_none_of_typer_or_interpose(project: Path) -> None:
     for path in NOT_RENDERED:
         assert not (project / path).exists(), path
-    for path in (PROGRAM, "src/demo/__init__.py", "src/demo/__main__.py", "tests/unit/test_demo.py",
-                 "scripts/check-stdlib.py"):  # fmt: skip
+    for path in (PROGRAM, "src/demo/__init__.py", "src/demo/__main__.py", "tests/conftest.py",
+                 "tests/unit/test_demo.py", "tests/unit/test_hello.py", "scripts/check-stdlib.py"):  # fmt: skip
         assert (project / path).is_file(), path
     assert (project / PROGRAM).read_text().startswith("#!/usr/bin/python3 -IS\n")
     assert '__version__ = "0.0.0"  # x-release-please-version\n' in (project / PROGRAM).read_text()
@@ -42,6 +43,54 @@ def test_renders_the_program_and_none_of_typer_or_interpose(project: Path) -> No
         text = path.read_text().lower()
         for name in ("interpose", "typer", "pyyaml", "import yaml"):
             assert name not in text, f"{path.relative_to(project)} names {name}"
+
+
+# A program with its own parser and a tail on its version line, as andronics/rootctl's: the seeded
+# test and CI's smoke step hold for it too (they need only `main`, `__version__` and the file).
+HAND_PARSER = '''#!/usr/bin/python3 -IS
+"""A demo project, with a hand parser."""
+
+from __future__ import annotations
+
+import platform
+import sys
+from collections.abc import Sequence
+
+__version__ = "0.0.0"  # x-release-please-version
+
+USAGE = "usage: demo [--help] [--version]\\n"
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = list(sys.argv[1:] if argv is None else argv)
+    if args == ["--help"]:
+        sys.stdout.write(USAGE)
+        return 0
+    if args == ["--version"]:
+        f = sys.flags
+        tail = f"python {platform.python_version()}, isolated={f.isolated}, no_site={f.no_site}"
+        sys.stdout.write(f"demo {__version__} ({tail})\\n")
+        return 0
+    sys.stderr.write(USAGE)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+'''
+# --version's output, and whether CI's smoke step takes it: the first line starts with
+# "demo 0.0.0", alone or followed by a space.
+VERSION_LINES = {"demo 0.0.0": True, "demo 0.0.0 (python 3.13.15, isolated=1, no_site=1)": True,
+                 "demo 0.0.0\nmore lines": True, "demo 0.0.01": False, "demo 0.0.0-dev": False,
+                 "demo": False, "other 0.0.0": False}  # fmt: skip
+
+
+def prints_version(line: str, dst: Path) -> Path:
+    """A copy of the program whose --version prints `line`."""
+    text = HAND_PARSER.replace('f"demo {__version__} ({tail})\\n"', repr(line + "\n"))
+    dst.mkdir(parents=True)
+    (dst / "demo.py").write_text(text)
+    return dst / "demo.py"
 
 
 @STDLIB
@@ -79,18 +128,22 @@ def test_template_owned_files(project: Path) -> None:
 
 
 @STDLIB
-def test_ci_runs_the_check_and_the_file_alone(project: Path) -> None:
+def test_ci_runs_the_check_and_the_file_alone(project: Path, tmp_path: Path) -> None:
     """stack-ci.yml's test matrix runs check-stdlib.py, and its smoke step runs the program file
-    alone with `python -IS`: run that step as CI does."""
+    alone with `python -IS`: run that step as CI does. --version's first line must start with
+    `demo 0.0.0`, alone or followed by a space (a program may add its own tail)."""
     steps = yaml.safe_load((project / ".github/workflows/stack-ci.yml").read_text())["jobs"]["test"]["steps"]
     assert "uv run scripts/check-stdlib.py" in [s.get("run") for s in steps]
     smoke = next(s["run"] for s in steps if s.get("name") == "Import and entry-point smoke test")
     assert 'uv run python -IS "$tmp/demo.py" --version' in smoke
     result = run(project, "bash", "-euo", "pipefail", "-c", smoke)
     assert result.returncode == 0, result.stdout + result.stderr
-    broken = smoke.replace('"$want" ]', '"$want-not" ]')
-    result = run(project, "bash", "-euo", "pipefail", "-c", broken)
-    assert result.returncode != 0 and "--version printed 'demo 0.0.0'" in result.stdout, result.stdout
+    for i, (line, ok) in enumerate(VERSION_LINES.items()):
+        program = prints_version(line, tmp_path / str(i))
+        result = run(project, "bash", "-euo", "pipefail", "-c", smoke.replace(f"cp {PROGRAM} ", f"cp {program} "))
+        assert (result.returncode == 0) is ok, (line, result.stdout + result.stderr)
+        if not ok:
+            assert f"--version printed '{line.splitlines()[0]}': its first line must be 'demo 0.0.0'" in result.stdout
 
 
 @STDLIB
@@ -103,6 +156,57 @@ def test_runs_alone_as_python_IS(project: Path, tmp_path: Path) -> None:
     alone.write_text(alone.read_text().replace("import sys\n", "import sys\n\nimport helper\n", 1))
     result = subprocess.run([sys.executable, "-IS", str(alone), "--version"], capture_output=True, text=True)
     assert result.returncode != 0 and "No module named 'helper'" in result.stderr
+
+
+@STDLIB
+def test_seeded_tests_hold_for_a_hand_parser(project: Path, tmp_path: Path) -> None:
+    """tests/unit/test_demo.py tests only what every stdlib-cli program has, so it passes for a
+    program with its own parser and a tail on its version line; the skeleton's own pass it too."""
+    dst = tmp_path / "p"
+    shutil.copytree(project, dst, symlinks=True, ignore=shutil.ignore_patterns(".git", ".venv"))
+    (dst / PROGRAM).write_text(HAND_PARSER)
+    for where in (project, dst):
+        result = run(where, "uv", "run", "pytest", "tests/unit/test_demo.py", "--no-cov", "-p", "no:cacheprovider")
+        assert result.returncode == 0 and "4 passed" in result.stdout, result.stdout + result.stderr
+    # The example command's test is a file of its own, to delete with it.
+    assert "hello" not in (project / "tests/unit/test_demo.py").read_text()
+    assert "delete this file along with `hello`" in (project / "tests/unit/test_hello.py").read_text()
+
+
+def test_update_from_cli_keeps_the_projects_tests(base_src: Path, python_src: Path, tmp_path: Path) -> None:
+    """`copier update --data kind=stdlib-cli` on a cli project: a project-owned file the new kind
+    doesn't render is deleted, edits and all, without a conflict. stdlib-cli renders a seeded
+    tests/conftest.py, so the project's own (`_skip_if_exists`) is kept; the cli-only files
+    (Typer, interpose) go, as docs/migrating/stdlib-cli.md says."""
+    project = render(base_src, python_src, tmp_path / "p", kind="cli", container_image=False)
+    with (project / "tests/conftest.py").open("a") as f:
+        f.write("\n# the project's own fixture\n")
+    commit(project)
+    sh("uvx", "--from", "copier>=9.19,<10", "copier", "update", "-a", ".copier-answers.stack-python.yml", "--trust",
+       "--skip-tasks", "--defaults", "--conflict", "inline", "--vcs-ref", "v1.0.0", "--data", "kind=stdlib-cli",
+       cwd=project)  # fmt: skip
+    conftest = (project / "tests/conftest.py").read_text()
+    assert "# the project's own fixture\n" in conftest and "from demo.config import ENV_PREFIX" in conftest
+    assert "<<<<<<<" not in conftest
+    status = sh("git", "status", "--porcelain", cwd=project).splitlines()
+    deleted = sorted(line[3:] for line in status if line.startswith(" D"))
+    assert deleted == ["contrib/demo.example.yaml", "src/demo/cli.py", "src/demo/config.py",
+                       "tests/unit/test_cli.py", "tests/unit/test_config.py"], status  # fmt: skip
+    assert "tests/conftest.py" not in "\n".join(status)
+    # The generic program test is added; the skeleton's `hello` test is for new projects only.
+    assert "?? tests/unit/test_demo.py" in status and not (project / "tests/unit/test_hello.py").exists()
+
+
+def test_update_keeps_the_example_test(base_src: Path, python_src: Path, tmp_path: Path) -> None:
+    """tests/unit/test_hello.py is rendered on copy only (`_exclude` on update): an update leaves a
+    new project's copy, edits and all."""
+    project = render(base_src, python_src, tmp_path / "p", kind="stdlib-cli")
+    with (project / "tests/unit/test_hello.py").open("a") as f:
+        f.write("# a project edit\n")
+    commit(project)
+    update(project, "v1.0.0")
+    assert sh("git", "status", "--porcelain", cwd=project) == ""
+    assert "# a project edit\n" in (project / "tests/unit/test_hello.py").read_text()
 
 
 def edit(path: str, old: str, new: str) -> Callable[[Path], None]:

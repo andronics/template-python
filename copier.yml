@@ -28,6 +28,13 @@ _envops:
   trim_blocks: true
   lstrip_blocks: true
 
+# The skeleton's example test, for a new project only: never rendered by `copier update`, so a
+# project that moves to stdlib-cli (with commands of its own) doesn't get it, and a new project's
+# copy is its own (neither side of an update has it, so the update leaves it be). Copier offers
+# _copier_operation here, not in file names.
+_exclude:
+  - "[% if _copier_operation != 'copy' %]tests/unit/test_hello.py[% endif %]"
+
 # Written once, then the project's: `copier update` never touches them again.
 # Template-owned files (workflows, scripts/check-wiki.py, docs/wiki/.standard.toml,
 # docs/wiki/Release-Process.md, ...) are not listed, so updates reach them.
