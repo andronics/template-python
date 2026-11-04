@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.6.1](https://github.com/andronics/template-python/compare/v2.6.0...v2.6.1) (2026-11-04)
+
+
+### 🐛 Bug Fixes
+
+* **stdlib-cli:** a seeded test that fits real programs (0012) ([#69](https://github.com/andronics/template-python/issues/69)) ([5597929](https://github.com/andronics/template-python/commit/55979293b96e7137f8eafc05a026a3a63316d077))
+
 ## [2.6.0](https://github.com/andronics/template-python/compare/v2.5.1...v2.6.0) (2026-11-04)
 
 
