@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.5.0](https://github.com/andronics/template-python/compare/v2.4.6...v2.5.0) (2026-11-04)
+
+
+### ✨ Features
+
+* a standard-library-only kind, stdlib-cli (0011) ([#60](https://github.com/andronics/template-python/issues/60)) ([5563a2f](https://github.com/andronics/template-python/commit/5563a2fb4bf9122d665346bd918421ff5b9b1cb3))
+
+
+### 📚 Documentation
+
+* **decisions:** propose a standard-library-only kind (0011) ([#58](https://github.com/andronics/template-python/issues/58)) ([c3d79a8](https://github.com/andronics/template-python/commit/c3d79a8d933f736b86855c6f26d03f549a7b314c))
+
 ## [2.4.6](https://github.com/andronics/template-python/compare/v2.4.5...v2.4.6) (2026-11-04)
 
 
