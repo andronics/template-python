@@ -61,8 +61,17 @@ def settings() -> str:
         "|---|---|---|---|",
     ]
     for s in SETTINGS:
-        # A config.py from before list settings (its src/ is the project's) has no is_list.
+        # A config.py from before list settings (its src/ is the project's) has no is_list, and
+        # one on interpose before v0.4.0 has no is_section.
         is_list = bool(getattr(s, "is_list", False))
+        if getattr(s, "is_section", False):
+            # A section (a YAML mapping, or a list of them) is read from its _FILE (a YAML file)
+            # or the config file, never a plain variable; its default is always empty.
+            kind = "A list of sections" if is_list else "A section"
+            default = "*(empty list)*" if is_list else "*(empty)*"
+            note = f" {kind}: YAML, from the config file or the `_FILE` variable's file."
+            rows.append(f"| `{s.key}` | `{s.env}_FILE` | {default} | {_cell(s.help)}{note} |")
+            continue
         empty = "*(empty list)*" if is_list else "*(none)*"
         default = empty if s.default == "" else f"`{s.default}`"
         listed = " A list: YAML, or comma-separated." if is_list else ""
