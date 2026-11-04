@@ -2,7 +2,7 @@
 
 <!-- Add a line for this record to the index in docs/decisions/README.md (CI checks). -->
 
-Status: Proposed
+Status: Approved (2026-11-04)
 Date: 2026-11-04
 Authors: Stephen Cox
 
@@ -20,7 +20,8 @@ The first such project is andronics/rootctl, an allowlisted root wrapper (its de
 was rendered as `kind: cli` (template-python v2.4.4) and then took the CLI apart: `dependencies = []`, no
 `cli.py`, `config.py` or `contrib/rootctl.example.yaml`, one stdlib-only program module
 `src/rootctl/rootctl.py` whose first line is `#!/usr/bin/python3 -IS`, and a release asset that is that
-file byte for byte. After that, these template-owned files are wrong for it:
+file byte for byte. A second project, andronics/passfill, follows the same `-IS` rules. After that,
+these template-owned files are wrong for it:
 
 | File | What it says that isn't true there |
 |---|---|
@@ -181,7 +182,7 @@ render given a `requests` import, a sibling import in the program file, or a dep
 - **A version file generated at build** (hatch-vcs, a `_version.py`). A PyPI build plugin and a second
   file the program would have to import. *Rejected.*
 - **The program as `cli.py`.** Keeps the familiar name, but the release asset and the installed program
-  are named after the project, and rootctl's file is already `<pkg>.py`. *Rejected* (open question 2).
+  are named after the project, and rootctl's file is already `<pkg>.py`. *Rejected* (resolved question 2).
 
 ## Consequences
 
@@ -216,25 +217,24 @@ render given a `requests` import, a sibling import in the program file, or a dep
   the wiki pages; the render-matrix variant and its tests; `docs/migrating/` for moving a `cli` project to
   `stdlib-cli`.
 
-## Open questions
+## Resolved questions
 
-1. **A kind value or a boolean?** Options: (a) `kind: stdlib-cli`, with `stdlib_only` derived; (b) a
-   `stdlib_only` question for `cli` (and `library`). *Recommendation:* (a). The flag would switch almost
-   every `cli` file to a second skeleton, and it buys a library nothing.
-2. **The name and the program file.** Options: `stdlib-cli` or `script` for the kind; `src/<pkg>/<pkg>.py`
-   or `src/<pkg>/cli.py` for the program. *Recommendation:* `stdlib-cli` (says both what it is and the
-   constraint) and `<pkg>.py` (the installed file is named after the program, and rootctl migrates without
-   a rename).
-3. **Configuration.** Options: (a) none in the skeleton, a rule in `stack.md`; (b) a small project-owned
-   loader (env plus a TOML file). *Recommendation:* (a): (b) is the drifting copy 0003 removed, and the
-   right input for a strict tool is usually arguments only.
-4. **Container images and services.** Options: allow `container_image` for `stdlib-cli`, or not; allow a
-   stdlib service, or not. *Recommendation:* neither. An image has its own interpreter, so the reason for
-   the kind is gone; a service is FastAPI by 0004.
-5. **Should the template publish the program file as a release asset** (with `SHA256SUMS`, from
-   `python-release.yml`)? *Recommendation:* not in this record. rootctl's assets are project-specific (its
-   allowlist, sudoers file and installer) and already have their own workflow; two workflows uploading to
-   one release would collide on the checksum file. Revisit when a second project needs it.
-6. **How strict is the shebang check?** Options: (a) require `-I` and `-S` in the first line; (b) require
-   exactly `#!/usr/bin/python3 -IS`; (c) no check. *Recommendation:* (a): the kind's promise is `-IS`, but
-   the interpreter path is the project's (a non-Arch host, `/usr/local/bin/python3`).
+Approved by the brain coordinator for Stephen, 2026-11-04, with each open question answered as recommended.
+
+1. **A kind value or a boolean?** A new kind, `kind: stdlib-cli`, with `stdlib_only` derived; not a
+   `stdlib_only` question for `cli`. The flag would switch almost every `cli` file to a second skeleton,
+   and it buys a library nothing.
+2. **The name and the program file.** The kind is `stdlib-cli` (it says both what it is and the
+   constraint) and the program file is `src/<pkg>/<pkg>.py` (the installed file is named after the program,
+   and rootctl migrates without a rename).
+3. **Configuration.** None in the skeleton, a rule in `stack.md` only. A project-owned loader is the
+   drifting copy 0003 removed, and the right input for a strict tool is usually arguments only.
+4. **Container images and services.** Neither: no `container_image` and no stdlib service for
+   `stdlib-cli`. An image has its own interpreter, so the reason for the kind is gone; a service is FastAPI
+   by 0004.
+5. **Should the template publish the program file as a release asset?** No, not in this record. rootctl's
+   assets are project-specific (its allowlist, sudoers file and installer) and already have their own
+   workflow; two workflows uploading to one release would collide on the checksum file. Revisit when a
+   second project needs it.
+6. **How strict is the shebang check?** It requires `-I` and `-S` in the first line; the interpreter path
+   is the project's (a non-Arch host, `/usr/local/bin/python3`). The kind's promise is `-IS`, not a path.
