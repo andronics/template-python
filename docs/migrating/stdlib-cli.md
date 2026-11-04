@@ -41,7 +41,9 @@ interpreter, so the reason for the kind is gone). Stay a `cli`.
 Resolve each conflict:
 
 - **`release-please-config.json`**: take the template's `{"type": "generic", "path": "src/<package>/<package>.py"}`
-  over a plain string entry.
+  over a plain string entry. A test of the project's own that reads this entry (for instance
+  `"src/<package>/<package>.py" in config["packages"]["."]["extra-files"]`) now finds an object: match
+  the entry's `path`.
 - **`pyproject.toml`**: keep the template's comment on `dependencies = []`; keep the project's own
   additions (a coverage floor above 80, extra ruff rules) and drop what was only there for the old CLI.
 - The files the template no longer renders (`src/<package>/cli.py`, `src/<package>/config.py`,
@@ -67,7 +69,7 @@ Then `sh scripts/post-update.sh` (it refreshes `uv.lock`: interpose, Typer and P
 - `main(argv=None) -> int`. The template's skeleton uses argparse with `allow_abbrev=False`; a project
   with its own parser keeps it (nothing template-owned imports the parser).
   `--version`'s first line starts with `<project> X.Y.Z`; the program may add its own facts after a space. Write output with `sys.stdout.write` and `sys.stderr.write`, and
-  exit 2 on a usage error.
+  exit 2 on a usage error, or the code the program declares as `EXIT_USAGE` (step 4).
 - Configuration: arguments first. If it needs more, environment variables named `<PREFIX><KEY>`, read in
   one place, and a file, if any, is TOML read with `tomllib`; write the precedence on the wiki's
   In-Depth-Configuration page.
@@ -79,11 +81,45 @@ template-python with `kind=stdlib-cli` into a scratch folder and read its `src/`
 
 ## 4. Tests
 
-- `tests/unit/test_<package>.py`: `--version`'s first line starts with `<project> X.Y.Z` (alone or
-  followed by a space), `--help` exits 0, an unknown option exits 2, and the file copied alone into
-  `tmp_path` runs with its shebang's flags. The skeleton's tests only that, through `main` and
-  `__version__`, so it holds for any parser: add it if the project has none. Test the commands in files
-  of their own.
+- `tests/unit/test_<package>.py` (decision 0012): `--version`'s first line starts with `<project> X.Y.Z`
+  (alone or followed by a space), `--help` exits 0, an unknown option exits with the program's
+  `EXIT_USAGE`, and the file copied alone into `tmp_path` runs with its shebang's flags. The update doesn't
+  add it: a new project gets it on `copier copy`. To use it, take it from a fresh render. If the usage
+  code isn't 2, declare `EXIT_USAGE = <code>` beside the parser (and say why in the project's design
+  record). If `tests/conftest.py` guards `subprocess`, or `main` takes dependencies it must be given in
+  tests, define `stdlib_cli_run` or `stdlib_cli_main` there; the test looks each up by name and uses its
+  own default without it. Test the commands in files of their own.
+
+  A runner past a `subprocess` guard, built on the `Popen` saved before it (`subprocess.run` looks `Popen`
+  up on every call, so a saved `run` still meets the guard):
+
+  ```python
+  REAL_POPEN = subprocess.Popen  # at import, before the guard replaces it
+
+
+  @pytest.fixture
+  def stdlib_cli_run() -> Callable[[list[str], Path], subprocess.CompletedProcess[str]]:
+      def run(argv: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+          with REAL_POPEN(argv, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as p:
+              out, err = p.communicate()
+          return subprocess.CompletedProcess(argv, p.returncode, out, err)
+
+      return run
+  ```
+
+  A `main` that needs a dependency (rootctl's journal), given the test's own:
+
+  ```python
+  @pytest.fixture
+  def stdlib_cli_main(tmp_path: Path) -> Callable[[list[str]], int]:
+      def call(argv: list[str]) -> int:
+          try:
+              return main(argv, journal=FakeJournal(tmp_path / "journal"))
+          except SystemExit as exit_:  # an argparse parser exits rather than returns
+              return exit_.code if isinstance(exit_.code, int) else 0 if exit_.code is None else 1
+
+      return call
+  ```
 - `tests/unit/test_version.py`: drop the `0+unknown` alternative; the literal is always a real version.
 - A test of the project's own that the program imports only the standard library may stay, or go:
   `scripts/check-stdlib.py` checks the same rule.
@@ -122,5 +158,7 @@ resolved by hand.
 `stack.md`. Its `--version` tail (`rootctl 0.1.0 (python 3.13.15, isolated=1, no_site=1)`), which its
 installer reads, stays: CI's check matches the start of the line. Its `tests/conftest.py` stays. Its own stdlib-only import test may stay. The two one-time merges are `release-please-config.json`'s
 `extra-files` (take the template's object) and the comment on `dependencies = []`. It keeps its hand
-parser, its coverage floor of 95, `install/` and its project-owned `release-assets.yml`. The new
-`tests/unit/test_rootctl.py` is added only if absent: keep or delete it.
+parser, its coverage floor of 95, `install/` and its project-owned `release-assets.yml`. The update
+doesn't add `tests/unit/test_rootctl.py`. To have it, rootctl takes the file from a fresh render, adds
+`EXIT_USAGE = EXIT_BAD_ARGUMENTS`, and defines both fixtures in its conftest (`stdlib_cli_main` passes its
+fake journal, `stdlib_cli_run` uses `real_popen`).

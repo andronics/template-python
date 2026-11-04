@@ -141,7 +141,8 @@ configuration: rootctl documents its allowlist there), with no generated `settin
 | `.github/workflows/python-tag-check.yml` | unchanged: a no-op without git-tag pins, as for a library |
 | `README.md` | Quick Start: `uv tool install` for development, or copy `src/<pkg>/<pkg>.py` onto `PATH` as `<project>`; it needs only `python3` |
 | `.claude/settings.json` | `uv run <project>` stays (gated on `has_cli`) |
-| `src/<pkg>/cli.py`, `config.py`, `tests/conftest.py`, `test_cli.py`, `test_config.py`, `contrib/<project>.example.yaml` | not rendered |
+| `src/<pkg>/cli.py`, `config.py`, `test_cli.py`, `test_config.py`, `contrib/<project>.example.yaml` | not rendered |
+| `tests/conftest.py` | rendered (seeded): a minimal one (a `clean_env` fixture), so a project moving from `cli` keeps its own |
 | `src/<pkg>/<pkg>.py`, `tests/unit/test_<pkg>.py` | rendered (seeded): the program, and its tests (`--version`, `--help`, an unknown argument exits 2, the `-IS` run through the shebang) |
 | `__init__.py`, `__main__.py`, `test_version.py` | as above |
 | Wiki pages (seeded): Security, Troubleshooting, Architecture-Internals' components, Testing-Guide's layout | the interpose and `_FILE` text gated off; the program file in the components table |
@@ -245,3 +246,4 @@ Approved by the brain coordinator for Stephen, 2026-11-04, with each open questi
 | Date | Change |
 |---|---|
 | 2026-11-04 | The `-IS --version` smoke check matches a prefix: the first line starts with `<project> <version>`, then end of line or a space, so a program may add facts after them (approved by the brain coordinator for Stephen) |
+| 2026-11-04 | `tests/conftest.py` has been rendered for `stdlib-cli` since v2.5.1 (a minimal one, so `copier update --data kind=stdlib-cli` keeps a project's own); the file table said not rendered and now matches |
