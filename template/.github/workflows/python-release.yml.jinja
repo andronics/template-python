@@ -28,6 +28,7 @@ concurrency:
 
 jobs:
   release-please:
+    # release-please and lock stay hosted: they take the release App token (A2 moves them).
     runs-on: ubuntu-latest
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}

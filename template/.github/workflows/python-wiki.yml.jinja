@@ -20,7 +20,7 @@ jobs:
   docs-touched:
     name: Docs updated with the code
     if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'no-docs-needed') && !startsWith(github.head_ref, 'release-please--')
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -33,7 +33,7 @@ jobs:
   labels:
     name: The no-docs-needed label exists
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     permissions:
       issues: write
     steps:
@@ -46,6 +46,7 @@ jobs:
   publish:
     name: Publish to the GitHub wiki
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    # Stays hosted for now: it pushes to the wiki repository (its own change, A2).
     runs-on: ubuntu-latest
     permissions:
       contents: write

@@ -13,7 +13,7 @@ jobs:
 [% set pythons = ['3.13', '3.14'] | select('ge', python_version) | list %]
   test:
     name: Test (Python ${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
@@ -87,7 +87,7 @@ jobs:
   api-breaking:
     name: Breaking API changes are declared
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -135,7 +135,7 @@ jobs:
   # passes vacuously, when none runs or one is skipped (a missing package or device).
   integration:
     name: Integration tests
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -184,16 +184,19 @@ jobs:
 
   markdown:
     name: Markdown lint
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      # The image, globs and config live in the script, so a local run matches this one.
+      # The pinned version, globs and config live in the script (markdownlint-cli2 on PATH or in the
+      # runner's tools folder, else the pinned Docker image), so a local run matches this one.
       - name: markdownlint
         run: scripts/check-markdown.sh
 [% if container_image or contrib %]
 
   manifests:
     name: Dockerfile and contrib manifests
+    # Stays hosted: it needs the docker CLI (`docker compose config`) and installs hadolint and
+    # kubeconform into the shared $HOME/.local/bin. Moves to CI_RUNNER once those are on the runner.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
