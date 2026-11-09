@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.6.5](https://github.com/andronics/template-python/compare/v2.6.4...v2.6.5) (2026-11-09)
+
+
+### 🐛 Bug Fixes
+
+* **ci:** skip the system packages step where apt and sudo cannot run ([#77](https://github.com/andronics/template-python/issues/77)) ([918dffe](https://github.com/andronics/template-python/commit/918dffe89882cca6ccd76f5ae7017b031633bcff))
+
 ## [2.6.4](https://github.com/andronics/template-python/compare/v2.6.3...v2.6.4) (2026-11-04)
 
 
