@@ -115,6 +115,34 @@ def test_docker_checks(project: Path) -> None:
         assert result.returncode == 0, f"{' '.join(cmd)}:\n{result.stdout}\n{result.stderr}"
 
 
+def test_markdown_lint_binary_first(tmp_path: Path) -> None:
+    """A42: markdownlint-cli2 0.24.0 on PATH or in $CI_TOOLS_BIN runs first, another version is not
+    used, and with neither it nor Docker, CI fails and a local run skips (offline, with a fake tool)."""
+    script = ROOT / "template/scripts/check-markdown.sh"  # a plain file, not rendered
+    tools, path, out = tmp_path / "tools", tmp_path / "path", tmp_path / "args"
+    tools.mkdir()
+    path.mkdir()
+    fake = tools / "markdownlint-cli2"
+    fake.write_text(f'#!/bin/sh\nif [ "$1" = "--version" ]; then echo "markdownlint-cli2 v0.24.0 (markdownlint v0.40.0)"; exit 0; fi\n'
+                    f'echo "$@" > "{out}"\n')  # fmt: skip
+    fake.chmod(0o755)
+    for name in ("bash", "dirname", "head", "grep", "sh"):
+        (path / name).symlink_to(shutil.which(name) or name)
+
+    def go(ci: str, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+        out.unlink(missing_ok=True)
+        return subprocess.run([str(script)], capture_output=True, text=True, check=False, env={"CI": ci, **env})
+
+    for env in ({"PATH": f"{tools}:{path}"}, {"PATH": str(path), "CI_TOOLS_BIN": str(tools)}):
+        result = go("true", env)
+        assert result.returncode == 0 and "docs/wiki/*.md" in out.read_text(), result.stdout + result.stderr
+    fake.write_text(fake.read_text().replace("v0.24.0", "v0.1.0"))
+    env = {"PATH": str(path), "CI_TOOLS_BIN": str(tools)}
+    result = go("true", env)
+    assert result.returncode == 1 and not out.exists() and "docker" in result.stdout, result.stdout
+    assert go("", env).returncode == 0
+
+
 def test_never_asks_base_questions(base_src: Path) -> None:
     """One answer, one place: base's identity is read through _external_data (decision 0001)."""
     config = yaml.safe_load((ROOT / "copier.yml").read_text())

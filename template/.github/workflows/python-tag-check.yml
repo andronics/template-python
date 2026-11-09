@@ -25,6 +25,7 @@ concurrency:
 
 jobs:
   tag-check:
+    # Stays hosted: it takes the release App token (A2 moves it).
     runs-on: ubuntu-latest
     steps:
       - id: app-token
